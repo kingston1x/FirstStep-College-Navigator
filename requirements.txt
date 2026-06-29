@@ -2,3 +2,5 @@ requests
 beautifulsoup4
 pandas
 scikit-learn
+streamlit>=1.30
+requests>=2.31

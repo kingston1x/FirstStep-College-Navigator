@@ -8,7 +8,7 @@ echo.
 
 :: Step 1 - Install dependencies
 echo [1/3] Installing dependencies...
-pip install pandas scikit-learn --quiet
+pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo ERROR: pip install failed. Is Python installed?
     pause

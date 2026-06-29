@@ -2,8 +2,8 @@
 FirstStep — Scholarship Navigator (front-end)
 
 A student fills in their profile (GPA, courses, interests, preferred
-destinations) and gets ranked scholarship matches, each with a plain-language
-reason it fits. The ranking comes from recommender.get_recommendations(),
+destinations) and gets ranked scholarship matches, each with a plain-language reason it fits. 
+The ranking comes from recommender.get_recommendations(),
 which is a local mock today and becomes Kofi's backend call later — this file
 does not change when that swap happens.
 
