@@ -51,18 +51,18 @@ def _parse_min_gpa(min_gpa_text: str) -> float | None:
         return None
     text = min_gpa_text.lower()
 
-    # Percentage like "70%" -> map onto a 5.0 scale.
+    # Percentage like "70%" -> map onto a 4.0 scale.
     pct = re.search(r"(\d{2})\s*%", text)
     if pct:
-        return round(float(pct.group(1)) / 20.0, 2)  # 100% -> 5.0
+        return round(float(pct.group(1)) / 25.0, 2)  # 100% -> 4.0
 
-    # Common UK honours bands -> rough 5.0-scale equivalents.
+    # Common UK honours bands -> rough 4.0-scale equivalents.
     if "first" in text:
-        return 4.5
+        return 3.9
     if "2:1" in text or "upper second" in text:
-        return 3.7
+        return 3.3
     if "2:2" in text or "lower second" in text:
-        return 3.0
+        return 2.7
     return None
 
 
@@ -99,7 +99,7 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
     Parameters
     ----------
     profile : dict with keys
-        gpa        : float   (e.g. 3.4 on a 5.0 scale)
+        gpa        : float   (e.g. 3.4 on a 4.0 scale)
         courses    : str     (free text, e.g. "computer science, networking")
         interests  : str     (free text, e.g. "AI, software, scholarships abroad")
         locations  : list[str] preferred destination countries (may be empty)
@@ -181,7 +181,7 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
 if __name__ == "__main__":
     # Quick self-test so you can run `python recommender.py` and eyeball output.
     demo = {
-        "gpa": 3.6,
+        "gpa": 3.2,
         "courses": "computer science, networking, cloud computing",
         "interests": "AI, software engineering, leadership",
         "locations": ["United Kingdom", "Türkiye"],
