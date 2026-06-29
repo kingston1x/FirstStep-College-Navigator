@@ -198,8 +198,8 @@ with left:
     st.markdown('<div class="fs-eyebrow">Your profile</div>', unsafe_allow_html=True)
     with st.form("profile_form"):
         gpa = st.slider(
-            "GPA (5.0 scale)", min_value=0.0, max_value=5.0, value=3.5, step=0.1,
-            help="Use your cumulative GPA on a 5.0 scale.",
+            "GPA (4.0 scale)", min_value=0.0, max_value=4.0, value=3.0, step=0.1,
+            help="Use your cumulative GPA on a 4.0 scale.",
         )
         courses = st.text_input(
             "Courses / field of study",
