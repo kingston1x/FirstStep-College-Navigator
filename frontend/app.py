@@ -20,8 +20,8 @@ from recommender import get_recommendations, available_countries
 # Page setup
 # --------------------------------------------------------------------------
 st.set_page_config(
-    page_title="FirstStep — Scholarship Navigator",
-    page_icon="🎓",
+    page_title="FirstStep Scholarship Navigator",
+    page_icon="FS",
     layout="wide",
 )
 
@@ -184,7 +184,7 @@ st.markdown(
     <div class="fs-hero">
         <h1>FirstStep<span class="accent">.</span></h1>
         <p>Tell us where you stand and where you want to go, and we'll rank the
-        scholarships that fit you best from across our database — and explain why
+        scholarships that fit you best from across our database and explain why
         each one made the list.</p>
     </div>
     """,
@@ -246,7 +246,6 @@ with right:
         st.markdown(
             """
             <div class="fs-empty">
-                <div class="big">🧭</div>
                 <div>Fill in your profile and press <b>Find my scholarships</b>.<br>
                 Your ranked matches will appear here.</div>
             </div>
@@ -286,10 +285,10 @@ with right:
                     )
 
                 facts = "".join([
-                    fact("Level", s.get("level", "—")),
-                    fact("Funding", s.get("funding_type", "—")),
-                    fact("Deadline", s.get("deadline", "—")),
-                    fact("GPA / grade", s.get("min_gpa", "—")),
+                    fact("Level", s.get("level", "")),
+                    fact("Funding", s.get("funding_type", "")),
+                    fact("Deadline", s.get("deadline", "")),
+                    fact("GPA / grade", s.get("min_gpa", "")),
                 ])
 
                 card = f"""
@@ -299,7 +298,7 @@ with right:
                             <h3>{html.escape(s.get("name", "Untitled"))}</h3>
                             <div class="fs-provider">{html.escape(s.get("provider", ""))}</div>
                         </div>
-                        <span class="fs-dest">📍 {html.escape(s.get("country", ""))}</span>
+                        <span class="fs-dest">{html.escape(s.get("country", ""))}</span>
                     </div>
                     <div class="fs-meter-wrap">
                         <div class="fs-meter-label">
@@ -313,7 +312,7 @@ with right:
                     <div class="fs-why"><b>Why this fits you:</b> {why}</div>
                     <div class="fs-facts">{facts}</div>
                     <a class="fs-apply" href="{html.escape(s.get("apply_url", "#"))}"
-                       target="_blank" rel="noopener noreferrer">Apply / learn more →</a>
+                       target="_blank" rel="noopener noreferrer">Apply / learn more</a>
                 </div>
                 """
                 st.markdown(card, unsafe_allow_html=True)
@@ -321,9 +320,8 @@ with right:
 # --------------------------------------------------------------------------
 # Footer
 # --------------------------------------------------------------------------
-st.markdown("---")
 st.caption(
-    "FirstStep · Scholarship & College Navigator for Gambian students. "
-    "Scholarship details are indicative — always confirm deadlines and eligibility "
+    "FirstStep · Scholarship and College Navigator for Gambian students. "
+    "Scholarship details are indicative. Always confirm deadlines and eligibility "
     "on the official site before applying."
 )
