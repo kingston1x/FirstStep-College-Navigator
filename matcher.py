@@ -120,6 +120,10 @@ def load_scholarships(path: str) -> pd.DataFrame:
     # Drop rows with no name (blank rows from Excel exports etc.)
     df = df.dropna(subset=["name"]).reset_index(drop=True)
 
+    # Blank funding_type (e.g. scraped rows that came up empty) should read as
+    # "Not specified" everywhere downstream, not as the literal string "nan".
+    df["funding_type"] = df["funding_type"].fillna("Not specified").replace("", "Not specified")
+
     # Combined text blob for TF-IDF
     df["_text_blob"] = (
         df["field_of_study"].fillna("") + " " +
