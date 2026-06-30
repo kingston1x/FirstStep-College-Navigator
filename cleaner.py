@@ -29,8 +29,8 @@ import pandas as pd
 # CONFIG
 # ─────────────────────────────────────────────
 
-DEFAULT_INPUT  = "data/raw/Scholarships.csv"
-DEFAULT_OUTPUT = "data/clean/scholarships_clean.csv"
+DEFAULT_INPUT  = "data\raw\Scholarships.csv"
+DEFAULT_OUTPUT = "data\clean\scholarships_clean.csv"
 
 # Every column the model (firststep_model.py) expects — do not remove any.
 REQUIRED_COLUMNS = [

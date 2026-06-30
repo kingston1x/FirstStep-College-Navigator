@@ -220,9 +220,12 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     mask &= (df["_min_gpa_numeric"] == 0.0) | (profile["gpa"] >= df["_min_gpa_numeric"])
 
     # ── Study level ───────────────────────────────────────────────────────────
+    # FIX: scholarship levels are compound strings ("Masters/PhD",
+    # "Bachelors/Masters"), so use substring matching instead of exact equality.
     if profile["level"].lower() != "any":
         level_lower = df["level"].str.lower().fillna("any")
-        mask &= level_lower.isin([profile["level"].lower(), "any"])
+        target = profile["level"].lower()
+        mask &= level_lower.apply(lambda s: target in s or "any" in s)
 
     # ── Language ──────────────────────────────────────────────────────────────
     student_lang = profile["language"].lower()
@@ -249,10 +252,14 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
 # Applied on top of TF-IDF cosine similarity as additive bonuses.
 # ──────────────────────────────────────────────────────────────────────────────
 
-AFRICA_BOOST   = 0.15   # scholarship explicitly mentions Africa / Gambia
-FULLY_FUNDED_BOOST = 0.10  # fully funded scholarships get a nudge
-DEADLINE_SOON_BOOST = 0.05 # deadline within 90 days — still open, but urgent
-DEADLINE_LATE_PENALTY = -0.05  # deadline over 18 months away — low urgency
+# Boosts are deliberately SMALL so TF-IDF text relevance leads the ranking and
+# boosts only nudge near-ties. (Previously these were 0.15/0.10, large enough to
+# outrank genuine topic relevance — a fully-funded but off-topic scholarship
+# could beat an on-topic one. Reduced so relevance dominates.)
+AFRICA_BOOST   = 0.05   # scholarship explicitly mentions Africa / Gambia
+FULLY_FUNDED_BOOST = 0.03  # fully funded scholarships get a small nudge
+DEADLINE_SOON_BOOST = 0.02 # deadline within 90 days — still open, but urgent
+DEADLINE_LATE_PENALTY = -0.02  # deadline over 18 months away — low urgency
 
 
 def compute_boosts(profile: dict, df: pd.DataFrame) -> pd.Series:

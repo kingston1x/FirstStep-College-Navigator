@@ -1,44 +1,57 @@
-
 @echo off
-echo.
 echo ============================================
-echo  FirstStep - Test Runner
+echo  FirstStep - Full Pipeline Runner
 echo ============================================
 echo.
 
 :: Step 1 - Install dependencies
-echo [1/3] Installing dependencies...
+echo [1/5] Installing dependencies...
 pip install -r requirements.txt
 if %errorlevel% neq 0 (
-    echo ERROR: pip install failed. Is Python installed?
+    echo ERROR: pip install failed. [cite: 2]
     pause
     exit /b 1
 )
-echo Done.
-echo.
 
-:: Step 2 - Run cleaner
-echo [2/3] Running cleaner.py...
+:: Step 2 - Run Scraper
+echo [2/5] Running scraper.py...
+python data/raw/scrape_scholars4dev.py
+if %errorlevel% neq 0 (
+    echo ERROR: scraper.py failed.
+    pause
+    exit /b 1
+)
+
+:: Step 3 - Run Cleaner
+echo [3/5] Running cleaner.py...
 python cleaner.py --input data/raw/Scholarships.csv --output data/clean/scholarships_clean.csv
 if %errorlevel% neq 0 (
-    echo ERROR: cleaner.py failed. Check output above.
+    echo ERROR: cleaner.py failed. [cite: 3]
     pause
     exit /b 1
 )
-echo.
 
-:: Step 3 - Run model
-echo [3/3] Running model.py...
-python model.py
+:: Step 4 - Run Matcher
+echo [4/5] Running matcher.py...
+python matcher.py
 if %errorlevel% neq 0 (
-    echo ERROR: model.py failed. Check output above.
+    echo ERROR: matcher.py failed.
+    pause
+    exit /b 1
+)
+
+:: Step 5 - Evaluate
+echo [5/5] Evaluating results...
+python evaluate.py 
+if %errorlevel% neq 0 (
+    echo ERROR: evaluate.py failed.
     pause
     exit /b 1
 )
 
 echo.
 echo ============================================
-echo  All tests passed.
+echo  All processes completed successfully.
 echo ============================================
 echo.
 pause
