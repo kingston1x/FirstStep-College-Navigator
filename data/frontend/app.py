@@ -14,7 +14,7 @@ import html
 
 import streamlit as st
 
-from recommender import get_recommendations
+from recommender import get_recommendations, available_countries
 
 # --------------------------------------------------------------------------
 # Page setup
@@ -25,7 +25,9 @@ st.set_page_config(
     layout="wide",
 )
 
-DESTINATIONS = ["United Kingdom", "Türkiye", "China", "Morocco", "United States"]
+# Destinations are pulled from the actual dataset, so the picker always
+# reflects the scholarships we really have.
+DESTINATIONS = available_countries()
 
 # --------------------------------------------------------------------------
 # Styling — deep navy + gold "departure board" identity
@@ -181,9 +183,9 @@ st.markdown(
     """
     <div class="fs-hero">
         <h1>FirstStep<span class="accent">.</span></h1>
-        <p>Tell us where you stand and where you want to go. We'll rank the
-        scholarships that fit you best across the UK, Türkiye, China, Morocco
-        and the United States — and explain why each one made the list.</p>
+        <p>Tell us where you stand and where you want to go, and we'll rank the
+        scholarships that fit you best from across our database — and explain why
+        each one made the list.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -203,23 +205,38 @@ with left:
         )
         courses = st.text_input(
             "Courses / field of study",
-            placeholder="e.g. computer science, networking, cloud computing",
+            placeholder="e.g. computer science, mathematics, data science",
         )
         interests = st.text_input(
             "Interests",
-            placeholder="e.g. AI, software engineering, leadership",
+            placeholder="e.g. AI, software engineering, research",
         )
+        col_a, col_b = st.columns(2)
+        with col_a:
+            level = st.selectbox(
+                "Study level",
+                options=["Any", "Bachelors", "Masters", "PhD"],
+                index=0,
+                help="The level of study you're applying for.",
+            )
+        with col_b:
+            language = st.selectbox(
+                "Language",
+                options=["English", "French", "German"],
+                index=0,
+                help="Your primary language of study.",
+            )
         locations = st.multiselect(
             "Preferred destinations",
             options=DESTINATIONS,
             default=[],
-            help="Leave empty to consider every region.",
+            help="Leave empty to consider every destination in the dataset.",
         )
         submitted = st.form_submit_button("Find my scholarships", type="primary")
 
     st.caption(
         "Tip: filling in courses and interests sharpens the match. "
-        "Destinations are optional."
+        "Study level and language filter out scholarships you can't apply to."
     )
 
 with right:
@@ -242,20 +259,24 @@ with right:
             "courses": courses,
             "interests": interests,
             "locations": locations,
+            "level": level,
+            "language": language,
         }
         results = get_recommendations(profile, top_k=8)
 
         if not results:
             st.markdown(
-                '<div class="fs-empty">No scholarships available to match yet. '
-                'Check back once the dataset is loaded.</div>',
+                '<div class="fs-empty">No scholarships matched your profile. '
+                'Try widening your study level, language, or destinations.</div>',
                 unsafe_allow_html=True,
             )
         else:
             st.caption(f"Showing the top {len(results)} matches, strongest first.")
             for r in results:
                 s = r["scholarship"]
-                pct = int(round(r["match_score"] * 100))
+                # Display scaling: raw TF-IDF scores sit ~0.1-0.5, so a strong
+                # match (~0.5) reads as 100%. match_score itself stays raw.
+                pct = min(int(round(r["match_score"] / 0.5 * 100)), 100)
                 why = html.escape(r["explanation"])
 
                 def fact(label, value):

@@ -309,7 +309,7 @@ def load_existing_csv(path):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_scraper(pages=3, output_file="Scholarships.csv"):
+def run_scraper(pages=3, output_file="data/raw/Scholarships.csv"):
     print("=" * 60)
     print("  FirstStep — scholars4dev Scraper v3 | Collector:", COLLECTOR_NAME)
     print("=" * 60)
@@ -400,7 +400,7 @@ def test_parsers():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Scrape scholars4dev (v3)")
     ap.add_argument("--pages", type=int, default=3)
-    ap.add_argument("--output", type=str, default="Scholarships.csv")
+    ap.add_argument("--output", type=str, default="data/raw/Scholarships.csv")
     ap.add_argument("--selftest", action="store_true", help="run offline parser tests")
     args = ap.parse_args()
     if args.selftest:
