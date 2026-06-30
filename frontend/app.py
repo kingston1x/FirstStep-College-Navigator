@@ -3,7 +3,9 @@ FirstStep Scholarship Navigator (front-end)
 Run: streamlit run app.py
 """
 
+import base64
 import html
+import os
 
 import streamlit as st
 
@@ -38,6 +40,11 @@ INTEREST_OPTIONS = sorted([
 for _k, _v in [("search_done", False), ("results", [])]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
+
+# ── Logo (base64 so it embeds cleanly in HTML without static-file serving) ────
+_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.png")
+with open(_logo_path, "rb") as _f:
+    _logo_src = "data:image/png;base64," + base64.b64encode(_f.read()).decode()
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -100,16 +107,20 @@ st.markdown(
         left: 0;
         top: 50%;
         transform: translateY(-50%);
-        display: flex;
-        align-items: center;
     }
-    .fs-logo-circle {
-        width: 82px; height: 82px;
-        background: white;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+    .fs-logo-wrap {
+        width: 160px;
+        height: 88px;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.28);
         flex-shrink: 0;
+    }
+    .fs-logo-img {
+        width: 160px;
+        display: block;
+        position: relative;
+        top: -16px;
     }
     .fs-hero-center { text-align: center; }
     .algerian-title {
@@ -413,25 +424,12 @@ st.markdown(
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
-    """
+    f"""
     <div class="fs-hero">
-
-        <!-- Logo left + title centered -->
         <div class="fs-hero-header">
             <div class="fs-logo-left">
-                <div class="fs-logo-circle">
-                    <!-- Compass icon recreated from the FirstStep brand mark -->
-                    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
-                        <circle cx="40" cy="40" r="36" fill="white" stroke="#0C1E30" stroke-width="6.5"/>
-                        <!-- Gold compass needle (north-east) -->
-                        <path d="M40 40 L59 21 L45 45 Z" fill="#F4A300"/>
-                        <path d="M40 40 L21 25 L35 35 Z" fill="#F4A300" opacity="0.28"/>
-                        <!-- Dark slate compass needle (south-west) -->
-                        <path d="M40 40 L21 59 L35 35 Z" fill="#3A566E"/>
-                        <path d="M40 40 L59 55 L45 45 Z" fill="#3A566E" opacity="0.28"/>
-                        <!-- Centre white dot -->
-                        <circle cx="40" cy="40" r="5.5" fill="white"/>
-                    </svg>
+                <div class="fs-logo-wrap">
+                    <img src="{_logo_src}" class="fs-logo-img" alt="FirstStep Logo"/>
                 </div>
             </div>
             <div class="fs-hero-center">
@@ -441,12 +439,8 @@ st.markdown(
                 </h1>
             </div>
         </div>
-
-        <!-- Tagline -->
         <p>Tell us about your academic profile and we'll instantly match you with
         the best scholarship opportunities from our global database.</p>
-
-        <!-- Trust indicators -->
         <div class="fs-trust">
             <div class="fs-trust-item">
                 <div class="fs-trust-check">&#10003;</div>
@@ -461,7 +455,6 @@ st.markdown(
                 <span>Instant Recommendations</span>
             </div>
         </div>
-
     </div>
     """,
     unsafe_allow_html=True,
