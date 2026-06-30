@@ -6,6 +6,7 @@ Run: streamlit run app.py
 import base64
 import html
 import os
+import time
 
 import streamlit as st
 
@@ -37,7 +38,7 @@ INTEREST_OPTIONS = sorted([
 ])
 
 # ── Session state ─────────────────────────────────────────────────────────────
-for _k, _v in [("search_done", False), ("results", [])]:
+for _k, _v in [("page", "form"), ("results", []), ("last_profile", {})]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
@@ -137,7 +138,6 @@ st.markdown(
         max-width: 560px;
         line-height: 1.65;
     }
-    /* Compact trust strip */
     .fs-trust {
         display: flex;
         align-items: center;
@@ -155,7 +155,6 @@ st.markdown(
         color: rgba(255,255,255,0.25);
         font-size: 0.75rem;
     }
-    /* In-hero CTA */
     .fs-hero-cta {
         display: inline-block;
         background: var(--gold);
@@ -322,7 +321,6 @@ st.markdown(
     }
     .fs-provider { color: var(--muted); font-size: 0.82rem; }
 
-    /* Match badge */
     .fs-badge-match {
         display: inline-block;
         font-family: 'Space Grotesk', sans-serif;
@@ -334,7 +332,6 @@ st.markdown(
     .fs-badge-match.good   { background: #FFF8E6; color: #A07000; }
     .fs-badge-match.fair   { background: #F0F4F8; color: var(--muted); }
 
-    /* Tag chips */
     .fs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
     .fs-tag {
         font-size: 0.73rem; font-weight: 600;
@@ -345,7 +342,6 @@ st.markdown(
     .fs-tag-funded  { background: #E6F7F1; color: #1A7A5E; }
     .fs-tag-neutral { background: #F0F4F8; color: var(--muted); }
 
-    /* Meter */
     .fs-meter-wrap { margin: 0 0 14px 0; }
     .fs-meter-label {
         display: flex; justify-content: space-between;
@@ -360,7 +356,6 @@ st.markdown(
         border-radius: 999px;
     }
 
-    /* Why it fits */
     .fs-why {
         background: #FBF6EC;
         border-left: 3px solid var(--gold);
@@ -370,7 +365,6 @@ st.markdown(
     }
     .fs-why b { color: var(--ink); }
 
-    /* Fact grid */
     .fs-facts { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-bottom: 16px; }
     .fs-fact { font-size: 0.84rem; }
     .fs-fact .k {
@@ -380,7 +374,6 @@ st.markdown(
     }
     .fs-fact .v { color: var(--ink); font-weight: 600; }
 
-    /* Apply CTA */
     .fs-apply {
         display: inline-block; text-decoration: none;
         background: var(--ink); color: #fff !important;
@@ -391,11 +384,98 @@ st.markdown(
     }
     .fs-apply:hover { background: var(--go); }
 
-    /* Results header */
+    /* ── Loading screen ───────────────────────────────────────── */
+    .fs-loading-screen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 55vh;
+        padding: 40px;
+    }
+    .fs-loading-inner {
+        text-align: center;
+        max-width: 460px;
+        width: 100%;
+    }
+    .fs-spinner {
+        width: 60px; height: 60px;
+        border: 5px solid rgba(15,42,67,0.08);
+        border-top-color: var(--gold);
+        border-radius: 50%;
+        animation: fs-spin 0.85s linear infinite;
+        margin: 0 auto 32px;
+    }
+    @keyframes fs-spin { to { transform: rotate(360deg); } }
+    .fs-loading-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--ink); margin: 0 0 10px;
+    }
+    .fs-loading-sub {
+        color: var(--muted); font-size: 0.92rem;
+        margin: 0 0 32px; line-height: 1.65;
+    }
+    .fs-loading-steps {
+        display: flex; flex-direction: column; gap: 12px;
+        text-align: left;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+    }
+    .fs-loading-step {
+        display: flex; align-items: center; gap: 12px;
+        font-size: 0.86rem; color: var(--muted);
+    }
+    .fs-loading-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        background: #D0D8E4;
+        flex-shrink: 0;
+        animation: fs-pulse 1.6s ease-in-out infinite;
+    }
+    .fs-loading-dot.active {
+        background: var(--gold);
+        animation: fs-pulse 0.9s ease-in-out infinite;
+    }
+    @keyframes fs-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* ── Results page header ──────────────────────────────────── */
+    .fs-results-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px 22px;
+        margin-bottom: 22px;
+    }
+    .fs-results-logo-wrap {
+        width: 80px; height: 46px;
+        overflow: hidden; border-radius: 8px;
+        flex-shrink: 0;
+    }
+    .fs-results-logo-img {
+        width: 80px; display: block;
+        position: relative; top: -9px;
+    }
+    .fs-results-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 1.15rem; font-weight: 700;
+        color: var(--ink); margin: 0 0 2px;
+    }
+    .fs-results-sub {
+        font-size: 0.82rem; color: var(--muted); margin: 0;
+    }
     .fs-results-count {
         font-size: 0.84rem; font-weight: 600;
         color: var(--muted); margin-bottom: 16px;
     }
+    .fs-results-cards { max-width: 860px; margin: 0 auto; }
 
     /* Helper caption under GPA */
     .fs-gpa-hint { font-size: 0.76rem; color: var(--muted); margin-top: -6px; margin-bottom: 8px; }
@@ -420,6 +500,9 @@ st.markdown(
         .fs-stat { min-width: 50%; border-right: none; border-bottom: 1px solid var(--line); }
         .fs-card-top { flex-direction: column; gap: 8px; }
         .fs-badge-match { align-self: flex-start; }
+        .fs-results-header { flex-wrap: wrap; gap: 12px; }
+        .fs-loading-screen { padding: 24px 16px; }
+        .fs-loading-title { font-size: 1.3rem; }
     }
     @media (max-width: 480px) {
         .fs-hero h1 { font-size: 1.55rem; }
@@ -430,162 +513,226 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown(
-    f"""
-    <div class="fs-hero">
-        <div class="fs-hero-content">
-            <div class="fs-tag">Scholarship Navigator</div>
-            <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
-            <p>Tell us your field of study and interests we'll instantly rank the best
-            scholarships for you from our global database and explain exactly why each one fits.</p>
-            <div class="fs-trust">
-                <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
-                <span class="fs-trust-sep">&middot;</span>
-                <span class="fs-trust-item"><b>&#10003; Global Database</b></span>
-                <span class="fs-trust-sep">&middot;</span>
-                <span class="fs-trust-item"><b>&#10003; Instant Results</b></span>
-            </div>
-            <a class="fs-hero-cta" href="#" onclick="
-                var el = window.parent.document.querySelector('input');
-                if(el) el.scrollIntoView({{behavior:'smooth', block:'center'}});
-                return false;">Find Matching Scholarships</a>
-        </div>
-        <div class="fs-hero-logo-right">
-            <div class="fs-hero-logo-wrap">
-                <img src="{_logo_src}" class="fs-hero-logo-img" alt="FirstStep Logo"/>
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
-# ── Layout ────────────────────────────────────────────────────────────────────
-left, right = st.columns([1, 1.6], gap="large")
+# ── Helper: build a scholarship card HTML string ──────────────────────────────
+def _fact(label: str, value: str) -> str:
+    if not str(value).strip():
+        return ""
+    return (
+        f'<div class="fs-fact">'
+        f'<span class="k">{html.escape(label)}</span>'
+        f'<span class="v">{html.escape(str(value))}</span>'
+        f'</div>'
+    )
 
-with left:
-    # Profile completion (reads session state set by previous renders)
-    courses_val   = str(st.session_state.get("fs_courses", "") or "")
-    interests_val = st.session_state.get("fs_interests", []) or []
-    gpa_val       = float(st.session_state.get("fs_gpa", 0.0) or 0.0)
-    level_val     = st.session_state.get("fs_level", "Any") or "Any"
-    locations_val = st.session_state.get("fs_locations", []) or []
 
-    completion = 0
-    if courses_val.strip():  completion += 30
-    if interests_val:        completion += 30
-    if gpa_val > 0:          completion += 15
-    if level_val != "Any":   completion += 15
-    if locations_val:        completion += 10
+def _build_card(r: dict) -> str:
+    s = r["scholarship"]
+    match_pct = min(int(round(r["match_score"] / 0.5 * 100)), 100)
+    why = html.escape(r["explanation"])
 
-    if completion >= 70:
-        bar_color = "#1E8E6F"
-    elif completion >= 30:
-        bar_color = "#F4A300"
+    if match_pct >= 70:
+        badge_cls, badge_label = "strong", f"{match_pct}% Strong Match"
+    elif match_pct >= 40:
+        badge_cls, badge_label = "good", f"{match_pct}% Good Match"
     else:
-        bar_color = "#CBD5E0"
+        badge_cls, badge_label = "fair", f"{match_pct}% Partial Match"
+
+    country = s.get("country", "")
+    funding = s.get("funding_type", "")
+    lvl = s.get("level", "")
+
+    tags = ""
+    if country:
+        tags += f'<span class="fs-tag fs-tag-country">{html.escape(country)}</span>'
+    if "fully" in funding.lower():
+        tags += '<span class="fs-tag fs-tag-funded">Fully Funded</span>'
+    elif funding:
+        tags += f'<span class="fs-tag fs-tag-neutral">{html.escape(funding)}</span>'
+    if lvl:
+        tags += f'<span class="fs-tag fs-tag-neutral">{html.escape(lvl)}</span>'
+
+    facts = "".join([
+        _fact("Deadline", s.get("deadline", "")),
+        _fact("Min GPA",  s.get("min_gpa", "")),
+        _fact("Value",    s.get("value", "")),
+    ])
+
+    return f"""
+    <div class="fs-card">
+        <div class="fs-card-top">
+            <div>
+                <h3>{html.escape(s.get("name", "Untitled"))}</h3>
+                <div class="fs-provider">{html.escape(s.get("provider", ""))}</div>
+            </div>
+            <span class="fs-badge-match {badge_cls}">{badge_label}</span>
+        </div>
+        <div class="fs-tags">{tags}</div>
+        <div class="fs-meter-wrap">
+            <div class="fs-meter-label">
+                <span>Match strength</span>
+                <span class="fs-meter-score">{match_pct}%</span>
+            </div>
+            <div class="fs-meter-track">
+                <div class="fs-meter-fill" style="width:{match_pct}%;"></div>
+            </div>
+        </div>
+        <div class="fs-why"><b>Why this fits you:</b> {why}</div>
+        <div class="fs-facts">{facts}</div>
+        <a class="fs-apply"
+           href="{html.escape(s.get('apply_url', '#'))}"
+           target="_blank" rel="noopener noreferrer">View Details</a>
+    </div>
+    """
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: FORM
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "form":
 
     st.markdown(
         f"""
-        <div class="fs-completion">
-            <div class="fs-completion-header">
-                <span>Profile Completion</span>
-                <span class="fs-completion-pct">{completion}%</span>
+        <div class="fs-hero">
+            <div class="fs-hero-content">
+                <div class="fs-tag">Scholarship Navigator</div>
+                <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
+                <p>Tell us your field of study and interests we'll instantly rank the best
+                scholarships for you from our global database and explain exactly why each one fits.</p>
+                <div class="fs-trust">
+                    <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
+                    <span class="fs-trust-sep">&middot;</span>
+                    <span class="fs-trust-item"><b>&#10003; Global Database</b></span>
+                    <span class="fs-trust-sep">&middot;</span>
+                    <span class="fs-trust-item"><b>&#10003; Instant Results</b></span>
+                </div>
+                <a class="fs-hero-cta" href="#" onclick="
+                    var el = window.parent.document.querySelector('input');
+                    if(el) el.scrollIntoView({{behavior:'smooth', block:'center'}});
+                    return false;">Find Matching Scholarships</a>
             </div>
-            <div class="fs-completion-track">
-                <div class="fs-completion-fill"
-                     style="width:{completion}%; background:{bar_color};"></div>
+            <div class="fs-hero-logo-right">
+                <div class="fs-hero-logo-wrap">
+                    <img src="{_logo_src}" class="fs-hero-logo-img" alt="FirstStep Logo"/>
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="fs-eyebrow">Your Profile</div>', unsafe_allow_html=True)
+    left, right = st.columns([1, 1.6], gap="large")
 
-    courses = st.text_input(
-        "Field of Study :red[*]",
-        key="fs_courses",
-        placeholder="e.g. Computer Science, Public Health, Engineering",
-    )
+    with left:
+        # Profile completion reads session state from previous render
+        courses_val   = str(st.session_state.get("fs_courses", "") or "")
+        interests_val = st.session_state.get("fs_interests", []) or []
+        gpa_val       = float(st.session_state.get("fs_gpa", 0.0) or 0.0)
+        level_val     = st.session_state.get("fs_level", "Any") or "Any"
+        locations_val = st.session_state.get("fs_locations", []) or []
 
-    interests = st.multiselect(
-        "Interests :red[*]",
-        options=INTEREST_OPTIONS,
-        key="fs_interests",
-        help="Select the areas you are most passionate about.",
-    )
+        completion = 0
+        if courses_val.strip():  completion += 30
+        if interests_val:        completion += 30
+        if gpa_val > 0:          completion += 15
+        if level_val != "Any":   completion += 15
+        if locations_val:        completion += 10
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        level = st.selectbox(
-            "Study Level",
-            options=["Any", "Bachelors", "Masters", "PhD"],
-            key="fs_level",
+        bar_color = "#1E8E6F" if completion >= 70 else "#F4A300" if completion >= 30 else "#CBD5E0"
+
+        st.markdown(
+            f"""
+            <div class="fs-completion">
+                <div class="fs-completion-header">
+                    <span>Profile Completion</span>
+                    <span class="fs-completion-pct">{completion}%</span>
+                </div>
+                <div class="fs-completion-track">
+                    <div class="fs-completion-fill"
+                         style="width:{completion}%; background:{bar_color};"></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-    with col_b:
-        language = st.selectbox(
-            "Language",
-            options=["English", "French", "German"],
-            key="fs_language",
+
+        st.markdown('<div class="fs-eyebrow">Your Profile</div>', unsafe_allow_html=True)
+
+        courses = st.text_input(
+            "Field of Study :red[*]",
+            key="fs_courses",
+            placeholder="e.g. Computer Science, Public Health, Engineering",
+        )
+        interests = st.multiselect(
+            "Interests :red[*]",
+            options=INTEREST_OPTIONS,
+            key="fs_interests",
+            help="Select the areas you are most passionate about.",
         )
 
-    locations = st.multiselect(
-        "Preferred Destinations",
-        options=DESTINATIONS,
-        key="fs_locations",
-        help="Leave empty to see scholarships from all destinations.",
-    )
-
-    gpa = st.number_input(
-        "GPA (4.0 Scale)",
-        min_value=0.0,
-        max_value=4.0,
-        value=0.0,
-        step=0.01,
-        format="%.2f",
-        key="fs_gpa",
-    )
-    st.markdown('<div class="fs-gpa-hint">Enter GPA between 0.00 and 4.00</div>', unsafe_allow_html=True)
-
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
-    if st.button("Find Matching Scholarships", type="primary", use_container_width=True):
-        missing = []
-        if not courses.strip():
-            missing.append("Field of Study")
-        if not interests:
-            missing.append("Interests")
-
-        if missing:
-            st.warning(
-                f"Please fill in **{' and '.join(missing)}** to find your scholarships."
+        col_a, col_b = st.columns(2)
+        with col_a:
+            level = st.selectbox(
+                "Study Level",
+                options=["Any", "Bachelors", "Masters", "PhD"],
+                key="fs_level",
             )
-        else:
-            interests_str = ", ".join(interests)
-            profile = {
-                "gpa":       float(gpa),
-                "courses":   courses,
-                "interests": interests_str,
-                "locations": locations,
-                "level":     level,
-                "language":  language,
-            }
-            with st.spinner("Finding your best matches..."):
-                st.session_state.results = get_recommendations(profile, top_k=8)
-            st.session_state.search_done = True
+        with col_b:
+            language = st.selectbox(
+                "Language",
+                options=["English", "French", "German"],
+                key="fs_language",
+            )
 
-    st.caption(
-        "Fields marked * are required. Study level and language filter out "
-        "scholarships you cannot apply to."
-    )
+        locations = st.multiselect(
+            "Preferred Destinations",
+            options=DESTINATIONS,
+            key="fs_locations",
+            help="Leave empty to see scholarships from all destinations.",
+        )
+        gpa = st.number_input(
+            "GPA (4.0 Scale)",
+            min_value=0.0,
+            max_value=4.0,
+            value=0.0,
+            step=0.01,
+            format="%.2f",
+            key="fs_gpa",
+        )
+        st.markdown('<div class="fs-gpa-hint">Enter GPA between 0.00 and 4.00</div>', unsafe_allow_html=True)
 
-# ── Right panel ───────────────────────────────────────────────────────────────
-with right:
-    st.markdown('<div class="fs-eyebrow">Your Matches</div>', unsafe_allow_html=True)
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    if not st.session_state.search_done:
+        if st.button("Find Matching Scholarships", type="primary", use_container_width=True):
+            missing = []
+            if not courses.strip():
+                missing.append("Field of Study")
+            if not interests:
+                missing.append("Interests")
+
+            if missing:
+                st.warning(
+                    f"Please fill in **{' and '.join(missing)}** to find your scholarships."
+                )
+            else:
+                st.session_state.last_profile = {
+                    "gpa":       float(gpa),
+                    "courses":   courses,
+                    "interests": ", ".join(interests),
+                    "locations": locations,
+                    "level":     level,
+                    "language":  language,
+                }
+                st.session_state.page = "loading"
+                st.rerun()
+
+        st.caption(
+            "Fields marked * are required. Study level and language filter out "
+            "scholarships you cannot apply to."
+        )
+
+    with right:
+        st.markdown('<div class="fs-eyebrow">Your Matches</div>', unsafe_allow_html=True)
         st.markdown(
             """
             <div class="fs-empty-wrap">
@@ -621,7 +768,6 @@ with right:
             """,
             unsafe_allow_html=True,
         )
-
         st.markdown(
             """
             <div class="fs-stats">
@@ -642,105 +788,125 @@ with right:
             unsafe_allow_html=True,
         )
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: LOADING
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "loading":
+    profile = st.session_state.get("last_profile", {})
+    courses_display = html.escape(profile.get("courses", "your field"))
+
+    st.markdown(
+        f"""
+        <div class="fs-loading-screen">
+            <div class="fs-loading-inner">
+                <div class="fs-spinner"></div>
+                <h2 class="fs-loading-title">Finding Your Matches</h2>
+                <p class="fs-loading-sub">
+                    Scanning our global scholarship database for
+                    <strong>{courses_display}</strong> students...
+                </p>
+                <div class="fs-loading-steps">
+                    <div class="fs-loading-step">
+                        <span class="fs-loading-dot active"></span>
+                        <span>Analyzing your academic profile</span>
+                    </div>
+                    <div class="fs-loading-step">
+                        <span class="fs-loading-dot active"></span>
+                        <span>Matching scholarships to your interests</span>
+                    </div>
+                    <div class="fs-loading-step">
+                        <span class="fs-loading-dot"></span>
+                        <span>Ranking by best fit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    results = get_recommendations(profile, top_k=8)
+    st.session_state.results = results
+
+    # Brief pause so the loading screen is visible while CSS animation plays
+    time.sleep(2)
+
+    st.session_state.page = "results"
+    st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: RESULTS
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "results":
+    profile = st.session_state.get("last_profile", {})
+    results = st.session_state.results
+
+    n = len(results)
+    level_str    = profile.get("level", "")
+    language_str = profile.get("language", "")
+    courses_str  = profile.get("courses", "")
+    sub_parts    = [p for p in [courses_str, level_str, language_str] if p and p != "Any"]
+
+    # Header bar
+    hcol, bcol = st.columns([5, 1])
+    with hcol:
+        st.markdown(
+            f"""
+            <div class="fs-results-header">
+                <div class="fs-results-logo-wrap">
+                    <img src="{_logo_src}" class="fs-results-logo-img" alt="FirstStep Logo"/>
+                </div>
+                <div>
+                    <div class="fs-results-title">
+                        {n} Scholarship{"s" if n != 1 else ""} Found
+                    </div>
+                    <div class="fs-results-sub">
+                        {html.escape(" &middot; ".join(sub_parts))}
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with bcol:
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        if st.button("Search Again", type="primary", use_container_width=True):
+            st.session_state.page = "form"
+            st.rerun()
+
+    # Results
+    if not results:
+        st.markdown(
+            """
+            <div class="fs-empty-wrap" style="max-width:560px; margin:0 auto;">
+                <div class="fs-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
+                         viewBox="0 0 24 24" fill="none" stroke="#5B6B7B"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                </div>
+                <h3>No scholarships matched</h3>
+                <p>Try widening your study level or language, or leave destinations
+                empty to search across all countries.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
-        results = st.session_state.results
+        st.markdown(
+            f'<div class="fs-results-count">Showing {n} match{"es" if n != 1 else ""}, strongest first</div>',
+            unsafe_allow_html=True,
+        )
+        all_cards = "".join(_build_card(r) for r in results)
+        st.markdown(
+            f'<div class="fs-results-cards">{all_cards}</div>',
+            unsafe_allow_html=True,
+        )
 
-        if not results:
-            st.markdown(
-                """
-                <div class="fs-empty-wrap">
-                    <div class="fs-empty-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
-                             viewBox="0 0 24 24" fill="none" stroke="#5B6B7B"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"/>
-                            <path d="m21 21-4.35-4.35"/>
-                        </svg>
-                    </div>
-                    <h3>No scholarships matched</h3>
-                    <p>Try widening your study level or language, or leave
-                    destinations empty to search across all countries.</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f'<div class="fs-results-count">'
-                f'Showing {len(results)} matches, strongest first'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-            for r in results:
-                s = r["scholarship"]
-                match_pct = min(int(round(r["match_score"] / 0.5 * 100)), 100)
-                why = html.escape(r["explanation"])
-
-                if match_pct >= 70:
-                    badge_cls, badge_label = "strong", f"{match_pct}% Strong Match"
-                elif match_pct >= 40:
-                    badge_cls, badge_label = "good", f"{match_pct}% Good Match"
-                else:
-                    badge_cls, badge_label = "fair", f"{match_pct}% Partial Match"
-
-                country  = s.get("country", "")
-                funding  = s.get("funding_type", "")
-                lvl      = s.get("level", "")
-
-                tags = ""
-                if country:
-                    tags += f'<span class="fs-tag fs-tag-country">{html.escape(country)}</span>'
-                if "fully" in funding.lower():
-                    tags += '<span class="fs-tag fs-tag-funded">Fully Funded</span>'
-                elif funding:
-                    tags += f'<span class="fs-tag fs-tag-neutral">{html.escape(funding)}</span>'
-                if lvl:
-                    tags += f'<span class="fs-tag fs-tag-neutral">{html.escape(lvl)}</span>'
-
-                def fact(label, value):
-                    if not str(value).strip():
-                        return ""
-                    return (
-                        f'<div class="fs-fact">'
-                        f'<span class="k">{html.escape(label)}</span>'
-                        f'<span class="v">{html.escape(str(value))}</span>'
-                        f'</div>'
-                    )
-
-                facts = "".join([
-                    fact("Deadline",  s.get("deadline", "")),
-                    fact("Min GPA",   s.get("min_gpa", "")),
-                    fact("Value",     s.get("value", "")),
-                ])
-
-                card = f"""
-                <div class="fs-card">
-                    <div class="fs-card-top">
-                        <div>
-                            <h3>{html.escape(s.get("name", "Untitled"))}</h3>
-                            <div class="fs-provider">{html.escape(s.get("provider", ""))}</div>
-                        </div>
-                        <span class="fs-badge-match {badge_cls}">{badge_label}</span>
-                    </div>
-                    <div class="fs-tags">{tags}</div>
-                    <div class="fs-meter-wrap">
-                        <div class="fs-meter-label">
-                            <span>Match strength</span>
-                            <span class="fs-meter-score">{match_pct}%</span>
-                        </div>
-                        <div class="fs-meter-track">
-                            <div class="fs-meter-fill" style="width:{match_pct}%;"></div>
-                        </div>
-                    </div>
-                    <div class="fs-why"><b>Why this fits you:</b> {why}</div>
-                    <div class="fs-facts">{facts}</div>
-                    <a class="fs-apply"
-                       href="{html.escape(s.get("apply_url", "#"))}"
-                       target="_blank" rel="noopener noreferrer">View Details</a>
-                </div>
-                """
-                st.markdown(card, unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.caption(
