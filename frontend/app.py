@@ -204,11 +204,11 @@ with left:
             help="Use your cumulative GPA on a 4.0 scale.",
         )
         courses = st.text_input(
-            "Courses / field of study",
+            "Courses / field of study :red[*]",
             placeholder="e.g. computer science, mathematics, data science",
         )
         interests = st.text_input(
-            "Interests",
+            "Interests :red[*]",
             placeholder="e.g. AI, software engineering, research",
         )
         col_a, col_b = st.columns(2)
