@@ -117,7 +117,7 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
         if full is None:
             continue
         country = str(full.get("country", ""))
-        if prefs and country.lower() not in prefs:
+        if prefs and country.lower() not in prefs and country.lower() not in ("various", "online"):
             continue
         scholarship = {k: ("" if pd.isna(full.get(k)) else full.get(k)) for k in SCHEMA}
         results.append({
