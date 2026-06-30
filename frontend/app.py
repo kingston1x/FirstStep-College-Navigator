@@ -303,6 +303,9 @@ st.markdown(
         border-radius: 14px;
         padding: 20px 22px;
         margin-bottom: 14px;
+        max-width: 860px;
+        margin-left: auto;
+        margin-right: auto;
         box-shadow: 0 1px 3px rgba(15,42,67,0.05);
         transition: box-shadow 0.18s ease, transform 0.12s ease;
     }
@@ -863,7 +866,7 @@ elif st.session_state.page == "results":
                         {n} Scholarship{"s" if n != 1 else ""} Found
                     </div>
                     <div class="fs-results-sub">
-                        {html.escape(" &middot; ".join(sub_parts))}
+                        {" &middot; ".join(html.escape(p) for p in sub_parts)}
                     </div>
                 </div>
             </div>
@@ -901,11 +904,8 @@ elif st.session_state.page == "results":
             f'<div class="fs-results-count">Showing {n} match{"es" if n != 1 else ""}, strongest first</div>',
             unsafe_allow_html=True,
         )
-        all_cards = "".join(_build_card(r) for r in results)
-        st.markdown(
-            f'<div class="fs-results-cards">{all_cards}</div>',
-            unsafe_allow_html=True,
-        )
+        for r in results:
+            st.markdown(_build_card(r), unsafe_allow_html=True)
 
 
 # ── Footer ────────────────────────────────────────────────────────────────────

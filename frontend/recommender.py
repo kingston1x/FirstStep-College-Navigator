@@ -51,6 +51,13 @@ def _split(text: str) -> list[str]:
     return [t.strip() for t in str(text or "").replace(";", ",").split(",") if t.strip()]
 
 
+_STOP = {
+    "and", "the", "for", "but", "with", "from", "are", "has", "was", "not",
+    "can", "all", "any", "its", "our", "you", "your", "that", "this", "have",
+    "been", "will", "more", "also", "such", "their", "study",
+}
+
+
 def _explanation(row: pd.Series, query_terms: set[str]) -> str:
     """
     Plain-language 'why this fits' line. Placeholder for Kofi's LLM layer —
@@ -58,7 +65,7 @@ def _explanation(row: pd.Series, query_terms: set[str]) -> str:
     """
     bits: list[str] = []
     blob = f"{row.get('field_of_study','')} {row.get('description','')}".lower()
-    shared = sorted({t for t in query_terms if len(t) > 2 and t in blob})
+    shared = sorted({t for t in query_terms if len(t) > 2 and t not in _STOP and t in blob})
     if shared:
         bits.append(f"it lines up with your interest in {', '.join(shared[:3])}")
     if "fully funded" in str(row.get("funding_type", "")).lower():
