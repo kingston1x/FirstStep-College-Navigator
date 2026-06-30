@@ -1,0 +1,11 @@
+profile_id,gpa,level,language,courses,interests,location,relevant_ids
+P001,3.4,Masters,English,Computer Science;Data Science,AI;machine learning;software engineering,Gambia,SCH-031;SCH-032;SCH-035;SCH-002;SCH-011
+P002,3.1,Masters,English,Public Health;Medicine;Biology,healthcare;global health;epidemiology,Gambia,SCH-015;SCH-023;SCH-034;SCH-008
+P003,3.5,Masters,English,Economics;Public Policy;Political Science,governance;development;policy,Gambia,SCH-012;SCH-033;SCH-016;SCH-008;SCH-032
+P004,2.9,Masters,English,Agriculture;Environmental Science,sustainable development;climate;food security,Gambia,SCH-008;SCH-027;SCH-029;SCH-023;SCH-034
+P005,3.6,PhD,English,Engineering;Computer Engineering,research;innovation;technology,Gambia,SCH-008;SCH-010;SCH-017;SCH-009;SCH-011
+P006,3.0,Masters,English,Education;Pedagogy;Teaching,curriculum development;teacher training;literacy,Gambia,SCH-018;SCH-023;SCH-033;SCH-027;SCH-029
+P007,3.2,Masters,English,Business Administration;Management;Finance,entrepreneurship;leadership;international business,Gambia,SCH-016;SCH-011;SCH-004;SCH-009
+P008,3.8,PhD,English,Mathematics;Physics;Chemistry,research;scientific computing;quantum,Gambia,SCH-010;SCH-017;SCH-009;SCH-011;SCH-035
+P009,3.0,Masters,English,Fine Arts;Graphic Design;Media,creative arts;fashion;digital media,Gambia,SCH-024;SCH-019;SCH-021;SCH-009
+P010,3.3,Bachelors,English,Computer Science;Business Administration,technology;entrepreneurship;innovation,Gambia,SCH-026;SCH-022;SCH-036;SCH-013;SCH-002
