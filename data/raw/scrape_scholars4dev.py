@@ -8,9 +8,9 @@ Scrapes scholarship listings from scholars4dev.com (African students category)
 and appends new records to the existing Scholarships.csv file.
 
 Usage:
-    python scrape_scholars4dev.py
-    python scrape_scholars4dev.py --pages 5
-    python scrape_scholars4dev.py --output my_output.csv
+    scrape_scholars4dev.py
+    scrape_scholars4dev.py --pages 5
+    scrape_scholars4dev.py --output my_output.csv
 """
 
 import requests
