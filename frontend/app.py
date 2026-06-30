@@ -437,7 +437,7 @@ st.markdown(
         <div class="fs-hero-content">
             <div class="fs-tag">Scholarship Navigator</div>
             <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
-            <p>Tell us your field of study and interests — we'll instantly rank the best
+            <p>Tell us your field of study and interests we'll instantly rank the best
             scholarships for you from our global database and explain exactly why each one fits.</p>
             <div class="fs-trust">
                 <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
