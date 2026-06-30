@@ -253,6 +253,20 @@ with right:
             unsafe_allow_html=True,
         )
     else:
+        missing = []
+        if not courses.strip():
+            missing.append("Courses / field of study")
+        if not interests.strip():
+            missing.append("Interests")
+
+        if missing:
+            fields = " and ".join(missing)
+            st.warning(
+                f"Please fill in **{fields}** before searching. "
+                "These fields help us find scholarships that are relevant to you."
+            )
+            st.stop()
+
         profile = {
             "gpa": gpa,
             "courses": courses,
