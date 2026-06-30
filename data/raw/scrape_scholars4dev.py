@@ -404,11 +404,7 @@ def test_parsers():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Scrape scholars4dev (v3)")
     ap.add_argument("--pages", type=int, default=3)
-<<<<<<< HEAD
-    ap.add_argument("--output", type=str, default=" data/raw/Scholarships.csv")
-=======
     ap.add_argument("--output", type=str, default="data/raw/Scholarships.csv")
->>>>>>> kofi-fork
     ap.add_argument("--selftest", action="store_true", help="run offline parser tests")
     args = ap.parse_args()
     if args.selftest:
