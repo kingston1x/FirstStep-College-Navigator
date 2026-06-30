@@ -65,11 +65,30 @@ st.markdown(
     .stApp { background: var(--bg); }
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: var(--ink); }
 
+    /* ── Nav bar ──────────────────────────────────────────────── */
+    .fs-nav {
+        display: flex;
+        align-items: center;
+        padding: 8px 4px 14px;
+    }
+    .fs-nav-logo-wrap {
+        width: 128px;
+        height: 72px;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+    .fs-nav-logo-img {
+        width: 128px;
+        display: block;
+        position: relative;
+        top: -14px;
+    }
+
     /* ── Hero ─────────────────────────────────────────────────── */
     .fs-hero {
         background: linear-gradient(135deg, #0B1F33 0%, #163352 55%, #1A4A6E 100%);
         border-radius: 20px;
-        padding: 44px 48px 40px;
+        padding: 36px 48px 32px;
         margin-bottom: 28px;
         color: #fff;
         position: relative;
@@ -93,78 +112,65 @@ st.markdown(
         border-radius: 50%;
         pointer-events: none;
     }
-    /* Hero header row: logo left, title centered */
-    .fs-hero-header {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 90px;
-        margin-bottom: 28px;
-    }
-    .fs-logo-left {
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-    }
-    .fs-logo-wrap {
-        width: 160px;
-        height: 88px;
-        overflow: hidden;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.28);
-        flex-shrink: 0;
-    }
-    .fs-logo-img {
-        width: 160px;
-        display: block;
-        position: relative;
-        top: -16px;
-    }
-    .fs-hero-center { text-align: center; }
-    .algerian-title {
-        font-family: 'Algerian', fantasy;
-        font-size: 2.3rem;
-        font-weight: 400;
-        margin: 0;
-        color: #fff;
-        letter-spacing: 1px;
-        line-height: 1.25;
-        text-shadow: 0 2px 12px rgba(0,0,0,0.3);
-    }
-    .algerian-title .accent { color: var(--gold); }
-
     .fs-tag {
         display: inline-block;
-        background: rgba(244,163,0,0.18);
+        background: rgba(244,163,0,0.16);
         color: var(--gold);
-        font-size: 0.7rem; font-weight: 700;
+        font-size: 0.68rem; font-weight: 700;
         letter-spacing: 1.6px; text-transform: uppercase;
         padding: 4px 12px; border-radius: 999px;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
     }
+    .fs-hero h1 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 2.55rem;
+        margin: 0 0 14px 0;
+        color: #fff;
+        letter-spacing: -0.8px;
+        line-height: 1.18;
+    }
+    .fs-hero h1 .accent { color: var(--gold); }
     .fs-hero p {
-        margin: 0 0 26px 0;
+        margin: 0 0 18px 0;
         color: #B3C5D5;
-        font-size: 1.02rem;
-        max-width: 580px;
+        font-size: 1rem;
+        max-width: 560px;
         line-height: 1.65;
-        text-align: center;
     }
-    .fs-trust { display: flex; gap: 20px; flex-wrap: wrap; }
+    /* Compact trust strip */
+    .fs-trust {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 22px;
+    }
     .fs-trust-item {
-        display: flex; align-items: center; gap: 8px;
-        color: #C0D0DF; font-size: 0.86rem; font-weight: 500;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.79rem;
+        font-weight: 500;
     }
-    .fs-trust-check {
-        width: 20px; height: 20px;
-        background: var(--go);
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.62rem; font-weight: 700; color: #fff;
-        flex-shrink: 0;
+    .fs-trust-item b { color: rgba(255,255,255,0.85); font-weight: 600; }
+    .fs-trust-sep {
+        color: rgba(255,255,255,0.25);
+        font-size: 0.75rem;
     }
+    /* In-hero CTA */
+    .fs-hero-cta {
+        display: inline-block;
+        background: var(--gold);
+        color: var(--ink) !important;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 0.92rem;
+        padding: 12px 26px;
+        border-radius: 10px;
+        text-decoration: none;
+        letter-spacing: 0.2px;
+        transition: background 0.15s ease, transform 0.12s ease;
+    }
+    .fs-hero-cta:hover { background: #e89d00; transform: translateY(-1px); }
 
     /* ── Eyebrow ──────────────────────────────────────────────── */
     .fs-eyebrow {
@@ -397,10 +403,10 @@ st.markdown(
 
     /* ── Mobile ───────────────────────────────────────────────── */
     @media (max-width: 768px) {
-        .fs-hero { padding: 28px 24px; }
-        .fs-hero h1 { font-size: 1.85rem; }
-        .fs-trust { gap: 12px; }
-        .fs-trust-item { font-size: 0.8rem; }
+        .fs-hero { padding: 24px 22px 22px; }
+        .fs-hero h1 { font-size: 1.8rem; }
+        .fs-trust { gap: 4px; }
+        .fs-trust-item { font-size: 0.76rem; }
         .fs-how { flex-direction: column; gap: 0; }
         .fs-how-step {
             border-right: none;
@@ -425,36 +431,28 @@ st.markdown(
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
     f"""
+    <nav class="fs-nav">
+        <div class="fs-nav-logo-wrap">
+            <img src="{_logo_src}" class="fs-nav-logo-img" alt="FirstStep Logo"/>
+        </div>
+    </nav>
+
     <div class="fs-hero">
-        <div class="fs-hero-header">
-            <div class="fs-logo-left">
-                <div class="fs-logo-wrap">
-                    <img src="{_logo_src}" class="fs-logo-img" alt="FirstStep Logo"/>
-                </div>
-            </div>
-            <div class="fs-hero-center">
-                <div class="fs-tag">Scholarship Navigator</div>
-                <h1 class="algerian-title">
-                    <span class="accent">FirstStep</span> Scholarship Navigator
-                </h1>
-            </div>
-        </div>
-        <p>Tell us about your academic profile and we'll instantly match you with
-        the best scholarship opportunities from our global database.</p>
+        <div class="fs-tag">Scholarship Navigator</div>
+        <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
+        <p>Tell us your field of study and interests — we'll instantly rank the best
+        scholarships for you from our global database and explain exactly why each one fits.</p>
         <div class="fs-trust">
-            <div class="fs-trust-item">
-                <div class="fs-trust-check">&#10003;</div>
-                <span>Personalized Scholarship Matches</span>
-            </div>
-            <div class="fs-trust-item">
-                <div class="fs-trust-check">&#10003;</div>
-                <span>Global Scholarship Database</span>
-            </div>
-            <div class="fs-trust-item">
-                <div class="fs-trust-check">&#10003;</div>
-                <span>Instant Recommendations</span>
-            </div>
+            <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
+            <span class="fs-trust-sep">&middot;</span>
+            <span class="fs-trust-item"><b>&#10003; Global Database</b></span>
+            <span class="fs-trust-sep">&middot;</span>
+            <span class="fs-trust-item"><b>&#10003; Instant Results</b></span>
         </div>
+        <a class="fs-hero-cta" href="#" onclick="
+            var el = window.parent.document.querySelector('input');
+            if(el) el.scrollIntoView({{behavior:'smooth', block:'center'}});
+            return false;">Find Matching Scholarships</a>
     </div>
     """,
     unsafe_allow_html=True,
