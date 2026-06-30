@@ -86,6 +86,44 @@ st.markdown(
         border-radius: 50%;
         pointer-events: none;
     }
+    /* Hero header row: logo left, title centered */
+    .fs-hero-header {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 90px;
+        margin-bottom: 28px;
+    }
+    .fs-logo-left {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+    }
+    .fs-logo-circle {
+        width: 82px; height: 82px;
+        background: white;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+        flex-shrink: 0;
+    }
+    .fs-hero-center { text-align: center; }
+    .algerian-title {
+        font-family: 'Algerian', fantasy;
+        font-size: 2.3rem;
+        font-weight: 400;
+        margin: 0;
+        color: #fff;
+        letter-spacing: 1px;
+        line-height: 1.25;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .algerian-title .accent { color: var(--gold); }
+
     .fs-tag {
         display: inline-block;
         background: rgba(244,163,0,0.18);
@@ -93,24 +131,15 @@ st.markdown(
         font-size: 0.7rem; font-weight: 700;
         letter-spacing: 1.6px; text-transform: uppercase;
         padding: 4px 12px; border-radius: 999px;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
     }
-    .fs-hero h1 {
-        font-family: 'Space Grotesk', sans-serif;
-        font-weight: 700;
-        font-size: 2.5rem;
-        margin: 0 0 12px 0;
-        letter-spacing: -1px;
-        color: #fff;
-        line-height: 1.15;
-    }
-    .fs-hero .accent { color: var(--gold); }
     .fs-hero p {
         margin: 0 0 26px 0;
         color: #B3C5D5;
-        font-size: 1.05rem;
-        max-width: 560px;
+        font-size: 1.02rem;
+        max-width: 580px;
         line-height: 1.65;
+        text-align: center;
     }
     .fs-trust { display: flex; gap: 20px; flex-wrap: wrap; }
     .fs-trust-item {
@@ -386,10 +415,38 @@ st.markdown(
 st.markdown(
     """
     <div class="fs-hero">
-        <div class="fs-tag">Scholarship Navigator</div>
-        <h1>Find Your Perfect<br><span class="accent">Scholarship Match</span></h1>
+
+        <!-- Logo left + title centered -->
+        <div class="fs-hero-header">
+            <div class="fs-logo-left">
+                <div class="fs-logo-circle">
+                    <!-- Compass icon recreated from the FirstStep brand mark -->
+                    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+                        <circle cx="40" cy="40" r="36" fill="white" stroke="#0C1E30" stroke-width="6.5"/>
+                        <!-- Gold compass needle (north-east) -->
+                        <path d="M40 40 L59 21 L45 45 Z" fill="#F4A300"/>
+                        <path d="M40 40 L21 25 L35 35 Z" fill="#F4A300" opacity="0.28"/>
+                        <!-- Dark slate compass needle (south-west) -->
+                        <path d="M40 40 L21 59 L35 35 Z" fill="#3A566E"/>
+                        <path d="M40 40 L59 55 L45 45 Z" fill="#3A566E" opacity="0.28"/>
+                        <!-- Centre white dot -->
+                        <circle cx="40" cy="40" r="5.5" fill="white"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="fs-hero-center">
+                <div class="fs-tag">Scholarship Navigator</div>
+                <h1 class="algerian-title">
+                    <span class="accent">FirstStep</span> Scholarship Navigator
+                </h1>
+            </div>
+        </div>
+
+        <!-- Tagline -->
         <p>Tell us about your academic profile and we'll instantly match you with
         the best scholarship opportunities from our global database.</p>
+
+        <!-- Trust indicators -->
         <div class="fs-trust">
             <div class="fs-trust-item">
                 <div class="fs-trust-check">&#10003;</div>
@@ -404,6 +461,7 @@ st.markdown(
                 <span>Instant Recommendations</span>
             </div>
         </div>
+
     </div>
     """,
     unsafe_allow_html=True,
