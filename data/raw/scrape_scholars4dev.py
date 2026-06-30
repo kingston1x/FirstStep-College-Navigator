@@ -309,11 +309,7 @@ def load_existing_csv(path):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
-def run_scraper(pages=3, output_file=" data/raw/Scholarships.csv"):
-=======
 def run_scraper(pages=3, output_file="data/raw/Scholarships.csv"):
->>>>>>> kofi-fork
     print("=" * 60)
     print("  FirstStep — scholars4dev Scraper v3 | Collector:", COLLECTOR_NAME)
     print("=" * 60)

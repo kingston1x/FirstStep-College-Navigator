@@ -8,6 +8,7 @@ a plain-language reason it fits.
 Owner: Joshua · Part of the FirstStep group project.
 
 ## Run it
+
 ```bash
 cd frontend
 pip install -r requirements.txt
@@ -15,15 +16,17 @@ streamlit run app.py
 ```
 
 ## Files
-| File | Purpose |
-|------|---------|
-| `app.py` | The Streamlit UI — profile form + ranked result cards. |
-| `recommender.py` | Adapter: turns the UI profile into a model call and the model output into card data. |
-| `matcher.py` | Cday's TF-IDF model (level filter + boosts fixed). Does the actual ranking. |
-| `data/scholarships_clean.csv` | The 34-scholarship dataset (single source of truth). |
-| `.streamlit/config.toml` | Theme. |
+
+| File                          | Purpose                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| `app.py`                      | The Streamlit UI — profile form + ranked result cards.                               |
+| `recommender.py`              | Adapter: turns the UI profile into a model call and the model output into card data. |
+| `matcher.py`                  | Cday's TF-IDF model (level filter + boosts fixed). Does the actual ranking.          |
+| `data/scholarships_clean.csv` | The 34-scholarship dataset (single source of truth).                                 |
+| `.streamlit/config.toml`      | Theme.                                                                               |
 
 ## How it fits together
+
 UI → `recommender.get_recommendations(profile)` → `matcher.match()` (TF-IDF +
 hard filters + boosts) → results joined back to full records → cards.
 

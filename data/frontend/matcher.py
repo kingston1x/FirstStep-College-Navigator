@@ -341,6 +341,10 @@ def match(
     # ── Step 3: Soft boost scoring ────────────────────────────────────────────
     filtered["boost_score"] = compute_boosts(profile, filtered).values
 
+    # ── Step 3b: TF-IDF gate — zero out boosts for scholarships with no text
+    # relevance so Africa/funding boosts can't promote wholly off-topic results.
+    filtered.loc[filtered["tfidf_score"] < 0.03, "boost_score"] = 0.0
+
     # ── Step 4: Final score = TF-IDF + boosts (capped at 1.0) ────────────────
     filtered["final_score"] = (filtered["tfidf_score"] + filtered["boost_score"]).clip(upper=1.0)
 
