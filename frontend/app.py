@@ -65,25 +65,6 @@ st.markdown(
     .stApp { background: var(--bg); }
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: var(--ink); }
 
-    /* ── Nav bar ──────────────────────────────────────────────── */
-    .fs-nav {
-        display: flex;
-        align-items: center;
-        padding: 8px 4px 14px;
-    }
-    .fs-nav-logo-wrap {
-        width: 128px;
-        height: 72px;
-        overflow: hidden;
-        border-radius: 8px;
-    }
-    .fs-nav-logo-img {
-        width: 128px;
-        display: block;
-        position: relative;
-        top: -14px;
-    }
-
     /* ── Hero ─────────────────────────────────────────────────── */
     .fs-hero {
         background: linear-gradient(135deg, #0B1F33 0%, #163352 55%, #1A4A6E 100%);
@@ -93,6 +74,24 @@ st.markdown(
         color: #fff;
         position: relative;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 40px;
+    }
+    .fs-hero-content { flex: 1; min-width: 0; }
+    .fs-hero-logo-right { flex-shrink: 0; }
+    .fs-hero-logo-wrap {
+        width: 180px;
+        height: 103px;
+        overflow: hidden;
+        border-radius: 14px;
+        box-shadow: 0 6px 28px rgba(0,0,0,0.32);
+    }
+    .fs-hero-logo-img {
+        width: 180px;
+        display: block;
+        position: relative;
+        top: -21px;
     }
     .fs-hero::before {
         content: '';
@@ -403,8 +402,11 @@ st.markdown(
 
     /* ── Mobile ───────────────────────────────────────────────── */
     @media (max-width: 768px) {
-        .fs-hero { padding: 24px 22px 22px; }
+        .fs-hero { padding: 24px 22px 22px; flex-direction: column; gap: 20px; }
         .fs-hero h1 { font-size: 1.8rem; }
+        .fs-hero-logo-right { order: -1; align-self: flex-start; }
+        .fs-hero-logo-wrap { width: 140px; height: 80px; }
+        .fs-hero-logo-img { width: 140px; top: -16px; }
         .fs-trust { gap: 4px; }
         .fs-trust-item { font-size: 0.76rem; }
         .fs-how { flex-direction: column; gap: 0; }
@@ -431,28 +433,29 @@ st.markdown(
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
     f"""
-    <nav class="fs-nav">
-        <div class="fs-nav-logo-wrap">
-            <img src="{_logo_src}" class="fs-nav-logo-img" alt="FirstStep Logo"/>
-        </div>
-    </nav>
-
     <div class="fs-hero">
-        <div class="fs-tag">Scholarship Navigator</div>
-        <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
-        <p>Tell us your field of study and interests — we'll instantly rank the best
-        scholarships for you from our global database and explain exactly why each one fits.</p>
-        <div class="fs-trust">
-            <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
-            <span class="fs-trust-sep">&middot;</span>
-            <span class="fs-trust-item"><b>&#10003; Global Database</b></span>
-            <span class="fs-trust-sep">&middot;</span>
-            <span class="fs-trust-item"><b>&#10003; Instant Results</b></span>
+        <div class="fs-hero-content">
+            <div class="fs-tag">Scholarship Navigator</div>
+            <h1>Find Scholarships That<br><span class="accent">Match Your Academic Profile</span></h1>
+            <p>Tell us your field of study and interests — we'll instantly rank the best
+            scholarships for you from our global database and explain exactly why each one fits.</p>
+            <div class="fs-trust">
+                <span class="fs-trust-item"><b>&#10003; Personalized Matches</b></span>
+                <span class="fs-trust-sep">&middot;</span>
+                <span class="fs-trust-item"><b>&#10003; Global Database</b></span>
+                <span class="fs-trust-sep">&middot;</span>
+                <span class="fs-trust-item"><b>&#10003; Instant Results</b></span>
+            </div>
+            <a class="fs-hero-cta" href="#" onclick="
+                var el = window.parent.document.querySelector('input');
+                if(el) el.scrollIntoView({{behavior:'smooth', block:'center'}});
+                return false;">Find Matching Scholarships</a>
         </div>
-        <a class="fs-hero-cta" href="#" onclick="
-            var el = window.parent.document.querySelector('input');
-            if(el) el.scrollIntoView({{behavior:'smooth', block:'center'}});
-            return false;">Find Matching Scholarships</a>
+        <div class="fs-hero-logo-right">
+            <div class="fs-hero-logo-wrap">
+                <img src="{_logo_src}" class="fs-hero-logo-img" alt="FirstStep Logo"/>
+            </div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
