@@ -1,11 +1,11 @@
 profile_id,gpa,level,language,courses,interests,location,relevant_ids
-P001,3.4,Masters,English,Computer Science;Data Science,AI;machine learning;software engineering,Gambia,SCH-025;SCH-028;SCH-002;SCH-005;SCH-003
-P002,3.1,Masters,English,Public Health;Medicine;Biology,healthcare;global health;epidemiology,Gambia,SCH-009;SCH-017;SCH-027;SCH-022
-P003,3.5,Masters,English,Economics;Public Policy;Political Science,governance;development;policy,Gambia,SCH-006;SCH-027;SCH-002;SCH-005;SCH-022
-P004,2.9,Masters,English,Agriculture;Environmental Science,sustainable development;climate;food security,Gambia,SCH-002;SCH-017;SCH-028;SCH-022;SCH-027
-P005,3.6,Masters,English,Engineering;Computer Engineering;Technology,research;innovation;technology,Gambia,SCH-002;SCH-028;SCH-004;SCH-011;SCH-003
-P006,3.0,Masters,English,Education;Pedagogy;Teaching,curriculum development;teacher training;literacy,Gambia,SCH-012;SCH-017;SCH-027;SCH-022;SCH-006
-P007,3.2,Masters,English,Business Administration;Management;Finance,entrepreneurship;leadership;international business,Gambia,SCH-010;SCH-002;SCH-005;SCH-006;SCH-003
-P008,3.8,Masters,English,Mathematics;Physics;Chemistry,research;scientific computing;quantum physics,Gambia,SCH-025;SCH-029;SCH-004;SCH-011;SCH-005
-P009,3.0,Masters,English,Fine Arts;Graphic Design;Media,creative arts;fashion;digital media;visual arts,Gambia,SCH-018;SCH-013;SCH-015;SCH-003
-P010,3.3,Any,English,Computer Science;Business Administration,technology;entrepreneurship;innovation,Gambia,SCH-020;SCH-016;SCH-030;SCH-007;SCH-008
+P001,3.4,Masters,English,Computer Science;Data Science,AI;machine learning;software engineering,Gambia,SCH-025;SCH-028;SCH-002
+P002,3.1,Masters,English,Public Health;Medicine;Biology,healthcare;global health;epidemiology,Gambia,SCH-009;SCH-017;SCH-027
+P003,3.5,Masters,English,Economics;Public Policy;Political Science,governance;development;policy,Gambia,SCH-006;SCH-027;SCH-002
+P004,2.9,Masters,English,Agriculture;Environmental Science,sustainable development;climate;food security,Gambia,SCH-002;SCH-017;SCH-028;SCH-027
+P005,3.6,Masters,English,Engineering;Computer Engineering;Technology,research;innovation;technology,Gambia,SCH-002;SCH-028;SCH-024
+P006,3.0,Masters,English,Education;Pedagogy;Teaching,curriculum development;teacher training;literacy,Gambia,SCH-012;SCH-017;SCH-027;SCH-006
+P007,3.2,Masters,English,Business Administration;Management;Finance,entrepreneurship;leadership;international business,Gambia,SCH-002;SCH-006;SCH-028
+P008,3.8,Masters,English,Mathematics;Physics;Chemistry,research;scientific computing;quantum physics,Gambia,SCH-025;SCH-029
+P009,3.0,Masters,English,Fine Arts;Graphic Design;Media,creative arts;fashion;digital media;visual arts,Gambia,SCH-018;SCH-013;SCH-015
+P010,3.3,Undergraduate,English,Computer Science;Business Administration,technology;entrepreneurship;innovation,Gambia,SCH-020;SCH-030;SCH-031

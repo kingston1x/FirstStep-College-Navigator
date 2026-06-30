@@ -220,12 +220,25 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     mask &= (df["_min_gpa_numeric"] == 0.0) | (profile["gpa"] >= df["_min_gpa_numeric"])
 
     # ── Study level ───────────────────────────────────────────────────────────
-    # FIX: scholarship levels are compound strings ("Masters/PhD",
-    # "Bachelors/Masters"), so use substring matching instead of exact equality.
+    # Scholarship levels are compound strings ("Masters/PhD", "Undergraduate").
+    # Expand synonyms so "Bachelors", "Bachelor", "Undergraduate", "Undergrad"
+    # all match each other, and similarly for PhD variants.
+    _LEVEL_SYNONYMS: dict[str, set[str]] = {
+        "bachelors":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "bachelor":     {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergraduate":{"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergrad":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "phd":          {"phd", "doctorate", "doctoral"},
+        "doctorate":    {"phd", "doctorate", "doctoral"},
+        "doctoral":     {"phd", "doctorate", "doctoral"},
+    }
     if profile["level"].lower() != "any":
         level_lower = df["level"].str.lower().fillna("any")
-        target = profile["level"].lower()
-        mask &= level_lower.apply(lambda s: target in s or "any" in s)
+        raw = profile["level"].lower()
+        targets = _LEVEL_SYNONYMS.get(raw, {raw})
+        mask &= level_lower.apply(
+            lambda s: any(t in s for t in targets) or "any" in s
+        )
 
     # ── Language ──────────────────────────────────────────────────────────────
     student_lang = profile["language"].lower()
