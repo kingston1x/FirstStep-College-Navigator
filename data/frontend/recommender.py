@@ -1,192 +1,141 @@
 """
-recommender.py — the matching layer the front-end calls.
+recommender.py — adapter between the Streamlit UI and Cday's TF-IDF model.
 
-RIGHT NOW this is a self-contained MOCK so the UI runs and demos without
-waiting on the backend. It loads the local scholarships.json, scores each
-scholarship against the student's profile with a lightweight keyword + rule
-scorer, and returns ranked results in the agreed contract shape.
+The UI calls get_recommendations(profile, top_k) and gets back results in the
+DATA_CONTRACT shape: { scholarship, match_score, explanation }. Internally this
+now drives the REAL model (matcher.py) over the cleaned dataset — no mock.
 
-LATER (when Kofi's backend + Cday's TF-IDF model are live) you do NOT rewrite
-the UI. You only replace the body of `get_recommendations()` with a call to
-the backend. The function signature and the returned shape stay identical.
-See DATA_CONTRACT.md and the `_call_backend` example at the bottom of this file.
+Flow:
+  UI profile  ->  matcher.make_profile  ->  matcher.match (TF-IDF + filters)
+              ->  destination post-filter  ->  join back to full records
+              ->  contract shape for the UI
 """
 
 from __future__ import annotations
 
-import json
+import functools
 import os
-import re
 from typing import Any
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "scholarships.json")
+import pandas as pd
 
-# A tiny stopword list so common words don't inflate keyword overlap.
-_STOPWORDS = {
-    "and", "or", "the", "a", "an", "of", "to", "in", "for", "with", "on",
-    "any", "all", "study", "studies", "student", "students", "field", "fields",
-    "i", "am", "my", "want", "interested", "like", "love", "would", "be",
-}
+import matcher  # Cday's fixed TF-IDF model
 
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "scholarships_clean.csv")
 
-def load_scholarships(path: str = DATA_PATH) -> list[dict[str, Any]]:
-    """Read the local scholarship dataset."""
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _tokens(text: str) -> set[str]:
-    """Lowercase word tokens with stopwords removed."""
-    words = re.findall(r"[a-z]+", (text or "").lower())
-    return {w for w in words if w not in _STOPWORDS and len(w) > 2}
+# 18 columns the UI may display
+SCHEMA = [
+    "id", "name", "provider", "country", "level", "field_of_study", "min_gpa",
+    "funding_type", "value", "deadline", "eligibility", "language_req",
+    "description", "apply_url", "source_url", "source_type", "collected_by",
+    "date_added",
+]
 
 
-def _parse_min_gpa(min_gpa_text: str) -> float | None:
+@functools.lru_cache(maxsize=1)
+def _load():
+    """Load dataset + fit the TF-IDF vectorizer once (cached)."""
+    df = matcher.load_scholarships(DATA_PATH)
+    vec, mat = matcher.build_vectorizer(df)
+    return df, vec, mat
+
+
+def available_countries() -> list[str]:
+    """Distinct destination countries present in the dataset (for the picker)."""
+    df, _, _ = _load()
+    return sorted({str(c).strip() for c in df["country"].dropna() if str(c).strip()})
+
+
+def _split(text: str) -> list[str]:
+    """Split a comma/semicolon string into a clean list."""
+    return [t.strip() for t in str(text or "").replace(";", ",").split(",") if t.strip()]
+
+
+def _explanation(row: pd.Series, query_terms: set[str]) -> str:
     """
-    The dataset stores min_gpa as free text (e.g. "70%", "Upper second-class
-    (2:1)"). Pull out a rough numeric floor on a 5.0 scale so we can flag
-    feasibility. Returns None when nothing numeric is present.
-    """
-    if not min_gpa_text:
-        return None
-    text = min_gpa_text.lower()
-
-    # Percentage like "70%" -> map onto a 4.0 scale.
-    pct = re.search(r"(\d{2})\s*%", text)
-    if pct:
-        return round(float(pct.group(1)) / 25.0, 2)  # 100% -> 4.0
-
-    # Common UK honours bands -> rough 4.0-scale equivalents.
-    if "first" in text:
-        return 3.9
-    if "2:1" in text or "upper second" in text:
-        return 3.3
-    if "2:2" in text or "lower second" in text:
-        return 2.7
-    return None
-
-
-def _explain(profile: dict[str, Any], sch: dict[str, Any], shared: set[str],
-             country_match: bool, gpa_ok: bool | None) -> str:
-    """
-    Build a plain-language reason this scholarship was matched.
-
-    This is a PLACEHOLDER for the LLM explanation Kofi's layer will generate.
-    Keep it human and specific so the demo reads well even before the LLM lands.
+    Plain-language 'why this fits' line. Placeholder for Kofi's LLM layer —
+    the UI just displays this string, so swapping it later changes nothing here.
     """
     bits: list[str] = []
-    if country_match:
-        bits.append(f"it's in {sch['country']}, one of your preferred destinations")
+    blob = f"{row.get('field_of_study','')} {row.get('description','')}".lower()
+    shared = sorted({t for t in query_terms if len(t) > 2 and t in blob})
     if shared:
-        topics = ", ".join(sorted(shared)[:3])
-        bits.append(f"it lines up with your interest in {topics}")
-    if gpa_ok is True:
-        bits.append("your GPA clears its stated requirement")
-    elif gpa_ok is False:
-        bits.append("its grade bar looks above your current GPA, so treat it as a reach")
-
+        bits.append(f"it lines up with your interest in {', '.join(shared[:3])}")
+    if "fully funded" in str(row.get("funding_type", "")).lower():
+        bits.append("it's fully funded")
+    country = str(row.get("country", "")).strip()
+    if country and country.lower() not in ("various", "online"):
+        bits.append(f"it's based in {country}")
     if not bits:
-        return (f"A general match on level and field. Check the eligibility "
-                f"rules for {sch['name']} to confirm you qualify.")
-    reason = "; ".join(bits)
-    return reason[0].upper() + reason[1:] + "."
+        return f"A general fit for your profile — check the eligibility for {row.get('name','this scholarship')}."
+    s = "; ".join(bits)
+    return s[0].upper() + s[1:] + "."
 
 
 def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[str, Any]]:
     """
-    Rank scholarships for a student profile.
+    Rank scholarships for a student profile using the real model.
 
-    Parameters
-    ----------
-    profile : dict with keys
-        gpa        : float   (e.g. 3.4 on a 4.0 scale)
-        courses    : str     (free text, e.g. "computer science, networking")
-        interests  : str     (free text, e.g. "AI, software, scholarships abroad")
-        locations  : list[str] preferred destination countries (may be empty)
-    top_k : how many ranked results to return.
+    profile keys:
+        gpa        float (4.0 scale)
+        courses    str   (comma-separated)
+        interests  str   (comma-separated)
+        locations  list[str]  preferred destination countries (empty = all)
+        level      str   ("Any" / "Bachelors" / "Masters" / "PhD")
+        language   str   ("English" / "French" / ...)
 
-    Returns
-    -------
-    list of result objects in the DATA_CONTRACT shape:
-        { "scholarship": {...}, "match_score": float 0..1, "explanation": str }
-    sorted by match_score descending.
+    Returns list of { scholarship: {...18 fields}, match_score: float, explanation: str }
+    sorted by match strength. Non-qualifying scholarships are hidden by the model's
+    hard filters (strict mode).
     """
-    scholarships = load_scholarships()
+    df, vec, mat = _load()
 
-    profile_tokens = _tokens(
-        f"{profile.get('courses', '')} {profile.get('interests', '')}"
+    courses = _split(profile.get("courses"))
+    interests = _split(profile.get("interests"))
+
+    cday_profile = matcher.make_profile(
+        gpa=float(profile.get("gpa") or 0.0),
+        courses=courses,
+        interests=interests,
+        location="Gambia",  # home country (drives the Africa-eligibility boost)
+        level=(profile.get("level") or "Any"),
+        language=(profile.get("language") or "English"),
     )
-    prefs = {c.strip().lower() for c in profile.get("locations", []) if c.strip()}
-    student_gpa = profile.get("gpa")
+
+    # Rank everything that passes the hard filters, then post-filter by destination.
+    ranked = matcher.match(cday_profile, df, vec, mat, top_k=len(df))
+    if ranked.empty:
+        return []
+
+    prefs = {c.strip().lower() for c in profile.get("locations", []) if str(c).strip()}
+    query_terms = set(" ".join(courses + interests).lower().split())
+    by_id = {r["id"]: r for _, r in df.iterrows()}
 
     results: list[dict[str, Any]] = []
-    for sch in scholarships:
-        corpus = _tokens(
-            f"{sch.get('field_of_study', '')} {sch.get('description', '')} "
-            f"{sch.get('eligibility', '')}"
-        )
-        shared = profile_tokens & corpus
-
-        # --- score components (all 0..1) ---
-        # 1) keyword overlap with the student's courses + interests
-        overlap = len(shared) / max(len(profile_tokens), 1)
-        keyword_score = min(overlap * 1.5, 1.0)  # gentle boost, capped
-
-        # 2) destination preference
-        country_match = sch.get("country", "").strip().lower() in prefs if prefs else False
-        country_score = 1.0 if country_match else (0.0 if prefs else 0.4)
-
-        # 3) GPA feasibility
-        floor = _parse_min_gpa(sch.get("min_gpa", ""))
-        if floor is None or student_gpa is None:
-            gpa_ok: bool | None = None
-            gpa_score = 0.6  # unknown -> neutral
-        elif student_gpa >= floor:
-            gpa_ok = True
-            gpa_score = 1.0
-        else:
-            gpa_ok = False
-            gpa_score = 0.25  # still show it, flagged as a reach
-
-        # weighted blend; weights chosen so field relevance leads, then fit
-        match_score = round(
-            0.50 * keyword_score + 0.25 * country_score + 0.25 * gpa_score, 3
-        )
-
+    for _, r in ranked.iterrows():
+        full = by_id.get(r["id"])
+        if full is None:
+            continue
+        country = str(full.get("country", ""))
+        if prefs and country.lower() not in prefs and country.lower() not in ("various", "online"):
+            continue
+        scholarship = {k: ("" if pd.isna(full.get(k)) else full.get(k)) for k in SCHEMA}
         results.append({
-            "scholarship": sch,
-            "match_score": match_score,
-            "explanation": _explain(profile, sch, shared, country_match, gpa_ok),
+            "scholarship": scholarship,
+            "match_score": float(r["final_score"]),
+            "explanation": _explanation(full, query_terms),
         })
+        if len(results) >= top_k:
+            break
 
-    results.sort(key=lambda r: r["match_score"], reverse=True)
-    return results[:top_k]
-
-
-# ---------------------------------------------------------------------------
-# WHEN THE BACKEND IS READY — swap the body of get_recommendations() for this.
-# Nothing in app.py changes, because the returned shape is identical.
-#
-# import requests
-# BACKEND_URL = os.environ.get("FIRSTSTEP_API", "http://localhost:8000")
-#
-# def _call_backend(profile, top_k=8):
-#     resp = requests.post(f"{BACKEND_URL}/recommend",
-#                          json={"profile": profile, "top_k": top_k}, timeout=15)
-#     resp.raise_for_status()
-#     return resp.json()["results"]   # must match DATA_CONTRACT.md
-# ---------------------------------------------------------------------------
+    return results
 
 
 if __name__ == "__main__":
-    # Quick self-test so you can run `python recommender.py` and eyeball output.
-    demo = {
-        "gpa": 3.2,
-        "courses": "computer science, networking, cloud computing",
-        "interests": "AI, software engineering, leadership",
-        "locations": ["United Kingdom", "Türkiye"],
-    }
+    demo = {"gpa": 3.2, "courses": "Computer Science, Data Science",
+            "interests": "AI, software engineering", "locations": [],
+            "level": "Masters", "language": "English"}
     for r in get_recommendations(demo, top_k=5):
         s = r["scholarship"]
-        print(f"{r['match_score']:>5}  {s['name']} ({s['country']})")
+        print(f"{r['match_score']:.3f}  {s['name']} ({s['country']})")
         print(f"        {r['explanation']}")
