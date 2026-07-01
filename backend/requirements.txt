@@ -1,6 +1,5 @@
 requests
-beautifulsoup4
+flask
 pandas
 scikit-learn
-streamlit>=1.30
-requests>=2.31
+google-ganai
