@@ -96,7 +96,6 @@ Full field definitions and the 18-column scholarship schema are documented in [`
 ## Roadmap ideas
 
 - [ ] Expand the scholarship dataset beyond the initial curated set
-- [ ] Swap the local TF-IDF scorer for the live backend once ready
 - [ ] Add filtering by funding type, degree level, and deadline
 - [ ] Deploy a hosted version for students to use directly
 
