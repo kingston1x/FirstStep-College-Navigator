@@ -699,7 +699,7 @@ if st.session_state.page == "form":
             help="Leave empty to see scholarships from all destinations.",
         )
         gpa = st.number_input(
-            "GPA (4.0 Scale)",
+            "GPA (4.0 Scale) :red[*]",
             min_value=0.0,
             max_value=4.0,
             value=0.0,
@@ -717,6 +717,13 @@ if st.session_state.page == "form":
                 missing.append("Field of Study")
             if not interests:
                 missing.append("Interests")
+            if gpa <= 0.0:
+                # The GPA field defaults to 0.0, and every scholarship in the
+                # dataset has a real minimum GPA threshold — leaving this at
+                # 0.0 doesn't mean "no GPA filter," it silently fails every
+                # scholarship's GPA check and returns zero matches with no
+                # visible error. Require a real value before submitting.
+                missing.append("GPA")
 
             if missing:
                 st.warning(
