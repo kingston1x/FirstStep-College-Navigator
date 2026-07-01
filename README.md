@@ -1,4 +1,4 @@
-# FirstStep — College & Scholarship Navigator 
+# FirstStep  College & Scholarship Navigator 
 
 **AI-powered scholarship and college matching for Gambian students.**
 
@@ -10,7 +10,7 @@ FirstStep helps students discover scholarships and higher-education opportunitie
 
 1. A student enters their profile: GPA, courses, interests, and preferred destination countries.
 2. The matching engine scores every scholarship in the dataset against that profile using TF-IDF text similarity over fields like field of study, description, and eligibility.
-3. Each result comes back ranked with a **match score** (0–100%) and a short, human-readable **explanation** of *why* it's a good fit (e.g. *"It's in the United Kingdom, one of your preferred destinations; it lines up with your interest in leadership."*).
+3. Each result comes back ranked with a **match score** (0–100%) and a short, human readable **explanation** of *why* it's a good fit (e.g. *"It's in the United Kingdom, one of your preferred destinations; it lines up with your interest in leadership."*).
 
 The project is split so the frontend, the matching model, and the data pipeline can be built and improved independently — see [`DATA_CONTRACT.md`](./DATA_CONTRACT.md) for the exact interface everything agrees on.
 
@@ -22,7 +22,7 @@ The project is split so the frontend, the matching model, and the data pipeline 
 |---|---|
 | `app.py` | Main application entry point (Streamlit UI) |
 | `matcher.py` | Core matching/ranking engine — scores scholarships against a student profile |
-| `explainer.py` | Generates the natural-language "why this fits you" explanation for each match |
+| `explainer.py` | Generates the natural language "why this fits you" explanation for each match |
 | `cleaner.py` | Cleans and normalizes the raw scholarship dataset |
 | `evaluate.py` / `evaluation/` | Scripts and results for evaluating match quality |
 | `data/` | Scholarship dataset(s) |
@@ -89,7 +89,7 @@ And a response returns ranked scholarships, each with a `match_score` and an `ex
 }
 ```
 
-Full field definitions and the 18-column scholarship schema are documented in [`DATA_CONTRACT.md`](./DATA_CONTRACT.md).
+Full field definitions and the 18 column scholarship schema are documented in [`DATA_CONTRACT.md`](./DATA_CONTRACT.md).
 
 ---
 
@@ -97,7 +97,6 @@ Full field definitions and the 18-column scholarship schema are documented in [`
 
 - [ ] Expand the scholarship dataset beyond the initial curated set
 - [ ] Add filtering by funding type, degree level, and deadline
-- [ ] Deploy a hosted version for students to use directly
 
 ---
 
