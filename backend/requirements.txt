@@ -6,3 +6,4 @@ google-genai
 flask-cors
 python-dotenv
 beautifulsoup4
+gunicorn
