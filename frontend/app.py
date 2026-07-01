@@ -44,8 +44,11 @@ for _k, _v in [("page", "form"), ("results", []), ("last_profile", {})]:
 
 # ── Logo (base64 so it embeds cleanly in HTML without static-file serving) ────
 _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.png")
-with open(_logo_path, "rb") as _f:
-    _logo_src = "data:image/png;base64," + base64.b64encode(_f.read()).decode()
+try:
+    with open(_logo_path, "rb") as _f:
+        _logo_src = "data:image/png;base64," + base64.b64encode(_f.read()).decode()
+except FileNotFoundError:
+    _logo_src = ""
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -694,7 +697,7 @@ if st.session_state.page == "form":
             help="Leave empty to see scholarships from all destinations.",
         )
         gpa = st.number_input(
-            "GPA (4.0 Scale)",
+            "GPA (4.0 Scale) :red[*]",
             min_value=0.0,
             max_value=4.0,
             value=0.0,
@@ -712,6 +715,8 @@ if st.session_state.page == "form":
                 missing.append("Field of Study")
             if not interests:
                 missing.append("Interests")
+            if gpa <= 0.0:
+                missing.append("GPA")
 
             if missing:
                 st.warning(

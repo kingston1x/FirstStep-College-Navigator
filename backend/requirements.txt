@@ -1,0 +1,8 @@
+requests
+flask
+pandas
+scikit-learn
+google-genai
+flask-cors
+python-dotenv
+beautifulsoup4

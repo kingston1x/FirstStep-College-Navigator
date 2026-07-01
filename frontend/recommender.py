@@ -1,14 +1,16 @@
 """
-recommender.py — adapter between the Streamlit UI and Cday's TF-IDF model.
+recommender.py — adapter between the Streamlit UI and the FirstStep backend API.
 
 The UI calls get_recommendations(profile, top_k) and gets back results in the
-DATA_CONTRACT shape: { scholarship, match_score, explanation }. Internally this
-now drives the REAL model (matcher.py) over the cleaned dataset — no mock.
+DATA_CONTRACT shape: { scholarship, match_score, explanation }. This version
+no longer runs the model locally — it calls the Flask backend over HTTP so
+the frontend always sees the same data and matching logic as everyone else
+on the team.
 
 Flow:
-  UI profile  ->  matcher.make_profile  ->  matcher.match (TF-IDF + filters)
-              ->  destination post-filter  ->  join back to full records
-              ->  contract shape for the UI
+  UI profile  ->  POST /recommend (ranking + scores)
+              ->  GET /scholarships (full records, cached)
+              ->  join by id -> destination post-filter -> contract shape
 """
 
 from __future__ import annotations
@@ -17,38 +19,31 @@ import functools
 import os
 from typing import Any
 
-import pandas as pd
+import requests
 
-import matcher  # Cday's fixed TF-IDF model
+# Point this at wherever the Flask backend is running.
+# Locally: http://localhost:5000   |  Deployed: set API_BASE_URL env var.
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:5000").rstrip("/")
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "scholarships_clean.csv")
+# Backend's hard cap on /recommend's top_k (see app.py validation).
+_MAX_API_TOP_K = 20
 
-# 18 columns the UI may display
-SCHEMA = [
-    "id", "name", "provider", "country", "level", "field_of_study", "min_gpa",
-    "funding_type", "value", "deadline", "eligibility", "language_req",
-    "description", "apply_url", "source_url", "source_type", "collected_by",
-    "date_added",
-]
+# /scholarships is a fast plain data fetch. /recommend now also calls Gemini
+# (in explainer.py) to generate real explanations, which is a genuinely
+# slower, different kind of request — give it its own, much longer budget
+# instead of sharing the 10s timeout meant for a simple data fetch.
+SCHOLARSHIPS_TIMEOUT = 10   # seconds
+RECOMMEND_TIMEOUT = 60      # seconds
 
-
-@functools.lru_cache(maxsize=1)
-def _load():
-    """Load dataset + fit the TF-IDF vectorizer once (cached)."""
-    df = matcher.load_scholarships(DATA_PATH)
-    vec, mat = matcher.build_vectorizer(df)
-    return df, vec, mat
-
-
-def available_countries() -> list[str]:
-    """Distinct destination countries present in the dataset (for the picker)."""
-    df, _, _ = _load()
-    return sorted({str(c).strip() for c in df["country"].dropna() if str(c).strip()})
+# Fallback strings explainer.py/app.py use when Gemini couldn't produce a
+# real explanation. If the API's 'explanation' field starts with one of
+# these, treat it as "no real explanation" and fall back to the local
+# rule-based one below instead of showing the raw fallback text.
+_UNAVAILABLE_PREFIXES = ("Explanation unavailable", "Could not generate")
 
 
-def _split(text: str) -> list[str]:
-    """Split a comma/semicolon string into a clean list."""
-    return [t.strip() for t in str(text or "").replace(";", ",").split(",") if t.strip()]
+class BackendUnavailable(Exception):
+    """Raised when the FirstStep API can't be reached or returns an error."""
 
 
 _STOP = {
@@ -58,30 +53,65 @@ _STOP = {
 }
 
 
-def _explanation(row: pd.Series, query_terms: set[str]) -> str:
+def _split(text: str) -> list[str]:
+    """Split a comma/semicolon string into a clean list."""
+    return [t.strip() for t in str(text or "").replace(";", ",").split(",") if t.strip()]
+
+
+@functools.lru_cache(maxsize=1)
+def _all_scholarships() -> dict[str, dict[str, Any]]:
     """
-    Plain-language 'why this fits' line. Placeholder for Kofi's LLM layer —
-    the UI just displays this string, so swapping it later changes nothing here.
+    Fetch the full scholarship dataset once and cache it for the session.
+    Used to join full records (description, eligibility, etc.) onto the
+    ranked/scored results that /recommend returns.
+
+    NOTE: cached for the life of the process — if the backend dataset gets
+    updated, restart the Streamlit app (or wire this to st.cache_data with a
+    TTL instead of lru_cache if that's a problem in practice).
+    """
+    try:
+        resp = requests.get(f"{API_BASE_URL}/scholarships", timeout=SCHOLARSHIPS_TIMEOUT)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise BackendUnavailable(f"Could not reach FirstStep API at {API_BASE_URL}: {e}") from e
+
+    payload = resp.json()
+    if not payload.get("success"):
+        raise BackendUnavailable(f"API returned an error: {payload}")
+
+    return {row["id"]: row for row in payload["scholarships"]}
+
+
+def available_countries() -> list[str]:
+    """Distinct destination countries present in the dataset (for the picker)."""
+    rows = _all_scholarships().values()
+    return sorted({str(r.get("country", "")).strip() for r in rows if str(r.get("country", "")).strip()})
+
+
+def _explanation(full: dict[str, Any], query_terms: set[str]) -> str:
+    """
+    Plain-language 'why this fits' fallback line, used only when the backend
+    couldn't produce a real Gemini explanation (see get_recommendations()).
     """
     bits: list[str] = []
-    blob = f"{row.get('field_of_study','')} {row.get('description','')}".lower()
+    blob = f"{full.get('field_of_study', '')} {full.get('description', '')}".lower()
     shared = sorted({t for t in query_terms if len(t) > 2 and t not in _STOP and t in blob})
     if shared:
         bits.append(f"it lines up with your interest in {', '.join(shared[:3])}")
-    if "fully funded" in str(row.get("funding_type", "")).lower():
+    if "fully funded" in str(full.get("funding_type", "")).lower():
         bits.append("it's fully funded")
-    country = str(row.get("country", "")).strip()
+    country = str(full.get("country", "")).strip()
     if country and country.lower() not in ("various", "online"):
         bits.append(f"it's based in {country}")
     if not bits:
-        return f"A general fit for your profile — check the eligibility for {row.get('name','this scholarship')}."
+        return f"A general fit for your profile — check the eligibility for {full.get('name', 'this scholarship')}."
     s = "; ".join(bits)
     return s[0].upper() + s[1:] + "."
 
 
 def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[str, Any]]:
     """
-    Rank scholarships for a student profile using the real model.
+    Rank scholarships for a student profile by calling the FirstStep backend.
 
     profile keys:
         gpa        float (4.0 scale)
@@ -92,45 +122,72 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
         language   str   ("English" / "French" / ...)
 
     Returns list of { scholarship: {...18 fields}, match_score: float, explanation: str }
-    sorted by match strength. Non-qualifying scholarships are hidden by the model's
-    hard filters (strict mode).
-    """
-    df, vec, mat = _load()
+    sorted by match strength.
 
+    Raises BackendUnavailable if the API can't be reached — callers should
+    catch this and show a friendly "backend offline" message in the UI
+    rather than crashing.
+    """
     courses = _split(profile.get("courses"))
     interests = _split(profile.get("interests"))
+    prefs = {c.strip().lower() for c in profile.get("locations", []) if str(c).strip()}
 
-    cday_profile = matcher.make_profile(
-        gpa=float(profile.get("gpa") or 0.0),
-        courses=courses,
-        interests=interests,
-        location="Gambia",  # home country (drives the Africa-eligibility boost)
-        level=(profile.get("level") or "Any"),
-        language=(profile.get("language") or "English"),
-    )
+    # Ask for the max the API allows — we post-filter by destination locally,
+    # so requesting fewer than the cap risks under-filling top_k once the
+    # destination filter is applied.
+    request_k = _MAX_API_TOP_K if prefs else min(top_k, _MAX_API_TOP_K)
 
-    # Rank everything that passes the hard filters, then post-filter by destination.
-    ranked = matcher.match(cday_profile, df, vec, mat, top_k=len(df))
-    if ranked.empty:
+    body = {
+        "gpa": float(profile.get("gpa") or 0.0),
+        "courses": courses or ["General"],
+        "interests": interests or ["General"],
+        "level": profile.get("level") or "Any",
+        "language": profile.get("language") or "English",
+        "location": "Gambia",  # home country — drives the Africa-eligibility boost
+        "top_k": request_k,
+    }
+
+    try:
+        resp = requests.post(f"{API_BASE_URL}/recommend", json=body, timeout=RECOMMEND_TIMEOUT)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise BackendUnavailable(f"Could not reach FirstStep API at {API_BASE_URL}: {e}") from e
+
+    payload = resp.json()
+    if not payload.get("success"):
+        raise BackendUnavailable(f"API returned an error: {payload}")
+
+    ranked = payload.get("recommendations", [])
+    if not ranked:
         return []
 
-    prefs = {c.strip().lower() for c in profile.get("locations", []) if str(c).strip()}
+    by_id = _all_scholarships()
     query_terms = set(" ".join(courses + interests).lower().split())
-    by_id = {r["id"]: r for _, r in df.iterrows()}
 
     results: list[dict[str, Any]] = []
-    for _, r in ranked.iterrows():
+    for r in ranked:
         full = by_id.get(r["id"])
         if full is None:
-            continue
+            continue  # shouldn't happen, but don't let a stale cache crash the UI
         country = str(full.get("country", ""))
         if prefs and country.lower() not in prefs and country.lower() not in ("various", "online"):
             continue
-        scholarship = {k: ("" if pd.isna(full.get(k)) else full.get(k)) for k in SCHEMA}
+
+        # Prefer the backend's real Gemini explanation (from explainer.py).
+        # Only fall back to the local rule-based line if the backend
+        # genuinely couldn't produce one — missing key, explainer not
+        # loaded, or a per-item failure all surface as a known fallback
+        # string prefix rather than a real explanation.
+        api_explanation = str(r.get("explanation", "")).strip()
+        if api_explanation and not api_explanation.startswith(_UNAVAILABLE_PREFIXES):
+            explanation = api_explanation
+        else:
+            explanation = _explanation(full, query_terms)
+
         results.append({
-            "scholarship": scholarship,
+            "scholarship": full,
             "match_score": float(r["final_score"]),
-            "explanation": _explanation(full, query_terms),
+            "explanation": explanation,
         })
         if len(results) >= top_k:
             break
@@ -140,8 +197,8 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
 
 if __name__ == "__main__":
     demo = {"gpa": 3.2, "courses": "Computer Science, Data Science",
-            "interests": "AI, software engineering", "locations": [],
-            "level": "Masters", "language": "English"}
+             "interests": "AI, software engineering", "locations": [],
+             "level": "Masters", "language": "English"}
     for r in get_recommendations(demo, top_k=5):
         s = r["scholarship"]
         print(f"{r['match_score']:.3f}  {s['name']} ({s['country']})")
