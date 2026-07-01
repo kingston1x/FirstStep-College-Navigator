@@ -1,4 +1,4 @@
-# FirstStep — College & Scholarship Navigator 🎓
+# FirstStep — College & Scholarship Navigator 
 
 **AI-powered scholarship and college matching for Gambian students.**
 
