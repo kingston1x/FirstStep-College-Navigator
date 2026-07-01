@@ -224,13 +224,13 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     # Expand synonyms so "Bachelors", "Bachelor", "Undergraduate", "Undergrad"
     # all match each other, and similarly for PhD variants.
     _LEVEL_SYNONYMS: dict[str, set[str]] = {
-        "bachelors":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
-        "bachelor":     {"bachelors", "bachelor", "undergraduate", "undergrad"},
-        "undergraduate":{"bachelors", "bachelor", "undergraduate", "undergrad"},
-        "undergrad":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
-        "phd":          {"phd", "doctorate", "doctoral"},
-        "doctorate":    {"phd", "doctorate", "doctoral"},
-        "doctoral":     {"phd", "doctorate", "doctoral"},
+        "bachelors":     {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "bachelor":      {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergraduate": {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergrad":     {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "phd":           {"phd", "doctorate", "doctoral"},
+        "doctorate":     {"phd", "doctorate", "doctoral"},
+        "doctoral":      {"phd", "doctorate", "doctoral"},
     }
     if profile["level"].lower() != "any":
         level_lower = df["level"].str.lower().fillna("any")
@@ -265,14 +265,10 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
 # Applied on top of TF-IDF cosine similarity as additive bonuses.
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Boosts are deliberately SMALL so TF-IDF text relevance leads the ranking and
-# boosts only nudge near-ties. (Previously these were 0.15/0.10, large enough to
-# outrank genuine topic relevance — a fully-funded but off-topic scholarship
-# could beat an on-topic one. Reduced so relevance dominates.)
-AFRICA_BOOST   = 0.05   # scholarship explicitly mentions Africa / Gambia
-FULLY_FUNDED_BOOST = 0.03  # fully funded scholarships get a small nudge
-DEADLINE_SOON_BOOST = 0.02 # deadline within 90 days — still open, but urgent
-DEADLINE_LATE_PENALTY = -0.02  # deadline over 18 months away — low urgency
+AFRICA_BOOST   = 0.15   # scholarship explicitly mentions Africa / Gambia
+FULLY_FUNDED_BOOST = 0.10  # fully funded scholarships get a nudge
+DEADLINE_SOON_BOOST = 0.05 # deadline within 90 days — still open, but urgent
+DEADLINE_LATE_PENALTY = -0.05  # deadline over 18 months away — low urgency
 
 
 def compute_boosts(profile: dict, df: pd.DataFrame) -> pd.Series:
@@ -340,10 +336,6 @@ def match(
 
     # ── Step 3: Soft boost scoring ────────────────────────────────────────────
     filtered["boost_score"] = compute_boosts(profile, filtered).values
-
-    # ── Step 3b: TF-IDF gate — zero out boosts for scholarships with no text
-    # relevance so Africa/funding boosts can't promote wholly off-topic results.
-    filtered.loc[filtered["tfidf_score"] < 0.03, "boost_score"] = 0.0
 
     # ── Step 4: Final score = TF-IDF + boosts (capped at 1.0) ────────────────
     filtered["final_score"] = (filtered["tfidf_score"] + filtered["boost_score"]).clip(upper=1.0)
