@@ -120,10 +120,6 @@ def load_scholarships(path: str) -> pd.DataFrame:
     # Drop rows with no name (blank rows from Excel exports etc.)
     df = df.dropna(subset=["name"]).reset_index(drop=True)
 
-    # Blank funding_type (e.g. scraped rows that came up empty) should read as
-    # "Not specified" everywhere downstream, not as the literal string "nan".
-    df["funding_type"] = df["funding_type"].fillna("Not specified").replace("", "Not specified")
-
     # Combined text blob for TF-IDF
     df["_text_blob"] = (
         df["field_of_study"].fillna("") + " " +
@@ -224,12 +220,25 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     mask &= (df["_min_gpa_numeric"] == 0.0) | (profile["gpa"] >= df["_min_gpa_numeric"])
 
     # ── Study level ───────────────────────────────────────────────────────────
-    # FIX: scholarship levels are compound strings ("Masters/PhD",
-    # "Bachelors/Masters"), so use substring matching instead of exact equality.
+    # Scholarship levels are compound strings ("Masters/PhD", "Undergraduate").
+    # Expand synonyms so "Bachelors", "Bachelor", "Undergraduate", "Undergrad"
+    # all match each other, and similarly for PhD variants.
+    _LEVEL_SYNONYMS: dict[str, set[str]] = {
+        "bachelors":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "bachelor":     {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergraduate":{"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "undergrad":    {"bachelors", "bachelor", "undergraduate", "undergrad"},
+        "phd":          {"phd", "doctorate", "doctoral"},
+        "doctorate":    {"phd", "doctorate", "doctoral"},
+        "doctoral":     {"phd", "doctorate", "doctoral"},
+    }
     if profile["level"].lower() != "any":
         level_lower = df["level"].str.lower().fillna("any")
-        target = profile["level"].lower()
-        mask &= level_lower.apply(lambda s: target in s or "any" in s)
+        raw = profile["level"].lower()
+        targets = _LEVEL_SYNONYMS.get(raw, {raw})
+        mask &= level_lower.apply(
+            lambda s: any(t in s for t in targets) or "any" in s
+        )
 
     # ── Language ──────────────────────────────────────────────────────────────
     student_lang = profile["language"].lower()
@@ -331,6 +340,10 @@ def match(
 
     # ── Step 3: Soft boost scoring ────────────────────────────────────────────
     filtered["boost_score"] = compute_boosts(profile, filtered).values
+
+    # ── Step 3b: TF-IDF gate — zero out boosts for scholarships with no text
+    # relevance so Africa/funding boosts can't promote wholly off-topic results.
+    filtered.loc[filtered["tfidf_score"] < 0.03, "boost_score"] = 0.0
 
     # ── Step 4: Final score = TF-IDF + boosts (capped at 1.0) ────────────────
     filtered["final_score"] = (filtered["tfidf_score"] + filtered["boost_score"]).clip(upper=1.0)
