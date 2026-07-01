@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 echo ============================================
 echo  FirstStep - Full Pipeline Runner
 echo  (scrape -^> clean -^> match -^> evaluate -^> backend -^> frontend)
@@ -11,22 +11,64 @@ echo.
 :: the repo root in a terminal before running it).
 
 :: ---------------------------------------------------------------------
-:: Step 1 - Install dependencies (backend + frontend separately)
+:: Step 0 - Create/activate a project-local virtual environment
 :: ---------------------------------------------------------------------
-echo [1/6] Installing backend dependencies...
-pip install -r backend\requirements.txt
+if not exist ".venv\Scripts\activate.bat" (
+    echo [0/6] No .venv found - creating one...
+    python -m venv .venv
+    if %errorlevel% neq 0 (
+        echo ERROR: failed to create virtual environment.
+        pause
+        exit /b 1
+    )
+)
+
+call ".venv\Scripts\activate.bat"
 if %errorlevel% neq 0 (
-    echo ERROR: backend pip install failed.
+    echo ERROR: failed to activate virtual environment.
     pause
     exit /b 1
 )
 
-echo [1/6] Installing frontend dependencies...
-pip install -r frontend\requirements.txt
-if %errorlevel% neq 0 (
-    echo ERROR: frontend pip install failed.
-    pause
-    exit /b 1
+:: ---------------------------------------------------------------------
+:: Step 1 - Install dependencies, but only if requirements.txt changed
+:: since the last successful install. certutil is built into Windows,
+:: so this needs no extra tools. Hash both requirements files together
+:: and compare against the marker saved after the last install.
+:: ---------------------------------------------------------------------
+set "HASH_FILE=.venv\install.hash"
+set "NEW_HASH="
+
+for /f "skip=1 tokens=* delims=" %%H in ('certutil -hashfile backend\requirements.txt MD5 ^| findstr /v "CertUtil"') do (
+    if not defined NEW_HASH set "NEW_HASH=%%H"
+)
+for /f "skip=1 tokens=* delims=" %%H in ('certutil -hashfile frontend\requirements.txt MD5 ^| findstr /v "CertUtil"') do (
+    set "NEW_HASH=!NEW_HASH!%%H"
+)
+
+set "OLD_HASH="
+if exist "%HASH_FILE%" set /p OLD_HASH=<"%HASH_FILE%"
+
+if "%NEW_HASH%"=="%OLD_HASH%" (
+    echo [1/6] Dependencies unchanged - skipping install.
+) else (
+    echo [1/6] Installing backend dependencies...
+    pip install -r backend\requirements.txt
+    if %errorlevel% neq 0 (
+        echo ERROR: backend pip install failed.
+        pause
+        exit /b 1
+    )
+
+    echo [1/6] Installing frontend dependencies...
+    pip install -r frontend\requirements.txt
+    if %errorlevel% neq 0 (
+        echo ERROR: frontend pip install failed.
+        pause
+        exit /b 1
+    )
+
+    >"%HASH_FILE%" echo %NEW_HASH%
 )
 
 :: ---------------------------------------------------------------------
@@ -97,12 +139,12 @@ set "SCHOLARSHIPS_CSV=%CD%\data\clean\scholarships_clean.csv"
 :: running this script if you want explainer.py's Gemini calls to work.
 :: (Not currently wired into app.py's /recommend route - see note below.)
 
-start "FirstStep Backend (Flask)" cmd /k "set SCHOLARSHIPS_CSV=%SCHOLARSHIPS_CSV% && python backend\app.py"
+start "FirstStep Backend (Flask)" cmd /k "call .venv\Scripts\activate.bat && set SCHOLARSHIPS_CSV=%SCHOLARSHIPS_CSV% && python backend\app.py"
 
 echo Waiting for backend to boot...
 timeout /t 5 /nobreak >nul
 
-start "FirstStep Frontend (Streamlit)" cmd /k "cd frontend && streamlit run app.py"
+start "FirstStep Frontend (Streamlit)" cmd /k "call .venv\Scripts\activate.bat && cd frontend && streamlit run app.py"
 
 echo.
 echo ============================================

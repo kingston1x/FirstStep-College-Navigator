@@ -203,6 +203,39 @@ def make_profile(
 # 5. HARD FILTERS
 # ──────────────────────────────────────────────────────────────────────────────
 
+RECURRING_PATTERN = re.compile(r"\(annual\)|\bannual\b|\bongoing\b|\brolling\b", re.IGNORECASE)
+
+
+def project_recurring_deadlines(df: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
+    """
+    Return a Series of "effective" deadlines aligned to df.index.
+
+    For scholarships whose parsed deadline is expired (< cutoff) AND whose
+    deadline/description text marks them as recurring ("(annual)", "annual",
+    "ongoing", "rolling"), roll the deadline forward one year at a time
+    until it lands on/after cutoff (next cycle, same time of year).
+    Non-recurring or non-expired rows pass through unchanged, including
+    NaT for unparseable dates, which downstream filtering already treats
+    as non-expired.
+    """
+    is_recurring = (
+        df["deadline"].fillna("").str.contains(RECURRING_PATTERN)
+        | df["description"].fillna("").str.contains(RECURRING_PATTERN)
+    )
+
+    effective = df["_deadline_dt"].copy()
+
+    for idx in df.index:
+        dt = effective.loc[idx]
+        if pd.isna(dt) or not is_recurring.loc[idx]:
+            continue
+        while dt < cutoff:
+            dt = dt + pd.DateOffset(years=1)
+        effective.loc[idx] = dt
+
+    return effective
+
+
 def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     """
     Return only the scholarships that pass hard eligibility filters.
@@ -252,12 +285,20 @@ def apply_filters(profile: dict, df: pd.DataFrame) -> pd.DataFrame:
     mask &= df["_languages"].apply(lang_ok)
 
     # ── Deadline (drop clearly expired — more than 30 days in the past) ───────
+    # Recurring/annual programs (flagged "(annual)" in their own text) get
+    # their deadline rolled forward a year at a time until it's current,
+    # instead of being hard-filtered just because this year's cycle passed.
+    # One-off programs with no recurrence signal (e.g. SCH-010) stay filtered.
     today = pd.Timestamp.today().normalize()
     cutoff = today - pd.Timedelta(days=30)
-    expired = df["_deadline_dt"].notna() & (df["_deadline_dt"] < cutoff)
+
+    effective_deadline = project_recurring_deadlines(df, cutoff)
+    expired = effective_deadline.notna() & (effective_deadline < cutoff)
     mask &= ~expired
 
-    return df[mask].copy()
+    result = df[mask].copy()
+    result["_deadline_dt_effective"] = effective_deadline[mask]
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -269,6 +310,14 @@ AFRICA_BOOST   = 0.15   # scholarship explicitly mentions Africa / Gambia
 FULLY_FUNDED_BOOST = 0.10  # fully funded scholarships get a nudge
 DEADLINE_SOON_BOOST = 0.05 # deadline within 90 days — still open, but urgent
 DEADLINE_LATE_PENALTY = -0.05  # deadline over 18 months away — low urgency
+
+# Weight for the normalised TF-IDF component once combined with boosts
+# below. Subject match should decide ranking; boosts should only nudge
+# between otherwise-similar candidates, not override it (previously
+# final_score = tfidf + boost let a generic "any field, fully funded,
+# developing-country eligible" scholarship always beat a perfect
+# subject match that lacked those flags).
+TFIDF_WEIGHT = 0.7
 
 
 def compute_boosts(profile: dict, df: pd.DataFrame) -> pd.Series:
@@ -283,9 +332,11 @@ def compute_boosts(profile: dict, df: pd.DataFrame) -> pd.Series:
     fully_funded = df["funding_type"].fillna("").str.lower().str.contains("fully funded")
     boosts += fully_funded.astype(float) * FULLY_FUNDED_BOOST
 
-    # Deadline proximity
+    # Deadline proximity — use the projected/effective deadline so a
+    # recurring program's rolled-forward next cycle counts, not the stale raw date.
     today = pd.Timestamp.today().normalize()
-    days_to_deadline = (df["_deadline_dt"] - today).dt.days
+    deadline_col = "_deadline_dt_effective" if "_deadline_dt_effective" in df.columns else "_deadline_dt"
+    days_to_deadline = (df[deadline_col] - today).dt.days
 
     deadline_soon = days_to_deadline.notna() & (days_to_deadline > 0) & (days_to_deadline <= 90)
     deadline_late = days_to_deadline.notna() & (days_to_deadline > 540)  # >18 months
@@ -334,11 +385,25 @@ def match(
     tfidf_scores = cosine_similarity(query_vec, sub_matrix).flatten()
     filtered["tfidf_score"] = tfidf_scores
 
+    # Normalise TF-IDF relative to this query's candidate pool. Raw cosine
+    # similarity against boilerplate-heavy text is tiny (0.00-0.06) even for
+    # a good match, which let flat boosts dominate final_score. Min-max
+    # scaling within the pool restores contrast between candidates.
+    tmin, tmax = tfidf_scores.min(), tfidf_scores.max()
+    if tmax > tmin:
+        tfidf_norm = (tfidf_scores - tmin) / (tmax - tmin)
+    else:
+        tfidf_norm = tfidf_scores * 0.0
+
     # ── Step 3: Soft boost scoring ────────────────────────────────────────────
     filtered["boost_score"] = compute_boosts(profile, filtered).values
 
-    # ── Step 4: Final score = TF-IDF + boosts (capped at 1.0) ────────────────
-    filtered["final_score"] = (filtered["tfidf_score"] + filtered["boost_score"]).clip(upper=1.0)
+    # ── Step 4: Final score = weighted normalised TF-IDF + boosts ────────────
+    # Subject match now drives ranking; boosts (max ~0.3) only nudge between
+    # otherwise-similar candidates instead of overriding subject relevance.
+    filtered["final_score"] = (
+        TFIDF_WEIGHT * tfidf_norm + filtered["boost_score"]
+    ).clip(lower=0.0, upper=1.0)
 
     # ── Step 5: Rank and return ───────────────────────────────────────────────
     results = (
