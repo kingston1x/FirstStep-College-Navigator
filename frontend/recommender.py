@@ -28,7 +28,18 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:5000").rstrip("/
 # Backend's hard cap on /recommend's top_k (see app.py validation).
 _MAX_API_TOP_K = 20
 
-REQUEST_TIMEOUT = 10  # seconds
+# /scholarships is a fast plain data fetch. /recommend now also calls Gemini
+# (in explainer.py) to generate real explanations, which is a genuinely
+# slower, different kind of request — give it its own, much longer budget
+# instead of sharing the 10s timeout meant for a simple data fetch.
+SCHOLARSHIPS_TIMEOUT = 10   # seconds
+RECOMMEND_TIMEOUT = 60      # seconds
+
+# Fallback strings explainer.py/app.py use when Gemini couldn't produce a
+# real explanation. If the API's 'explanation' field starts with one of
+# these, treat it as "no real explanation" and fall back to the local
+# rule-based one below instead of showing the raw fallback text.
+_UNAVAILABLE_PREFIXES = ("Explanation unavailable", "Could not generate")
 
 
 class BackendUnavailable(Exception):
@@ -59,7 +70,7 @@ def _all_scholarships() -> dict[str, dict[str, Any]]:
     TTL instead of lru_cache if that's a problem in practice).
     """
     try:
-        resp = requests.get(f"{API_BASE_URL}/scholarships", timeout=REQUEST_TIMEOUT)
+        resp = requests.get(f"{API_BASE_URL}/scholarships", timeout=SCHOLARSHIPS_TIMEOUT)
         resp.raise_for_status()
     except requests.RequestException as e:
         raise BackendUnavailable(f"Could not reach FirstStep API at {API_BASE_URL}: {e}") from e
@@ -79,9 +90,8 @@ def available_countries() -> list[str]:
 
 def _explanation(full: dict[str, Any], query_terms: set[str]) -> str:
     """
-    Plain-language 'why this fits' line. Placeholder until this is swapped
-    for Kofi's Gemini explainer layer — the UI just displays this string,
-    so swapping it later changes nothing here.
+    Plain-language 'why this fits' fallback line, used only when the backend
+    couldn't produce a real Gemini explanation (see get_recommendations()).
     """
     bits: list[str] = []
     blob = f"{full.get('field_of_study', '')} {full.get('description', '')}".lower()
@@ -138,7 +148,7 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
     }
 
     try:
-        resp = requests.post(f"{API_BASE_URL}/recommend", json=body, timeout=REQUEST_TIMEOUT)
+        resp = requests.post(f"{API_BASE_URL}/recommend", json=body, timeout=RECOMMEND_TIMEOUT)
         resp.raise_for_status()
     except requests.RequestException as e:
         raise BackendUnavailable(f"Could not reach FirstStep API at {API_BASE_URL}: {e}") from e
@@ -162,10 +172,22 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
         country = str(full.get("country", ""))
         if prefs and country.lower() not in prefs and country.lower() not in ("various", "online"):
             continue
+
+        # Prefer the backend's real Gemini explanation (from explainer.py).
+        # Only fall back to the local rule-based line if the backend
+        # genuinely couldn't produce one — missing key, explainer not
+        # loaded, or a per-item failure all surface as a known fallback
+        # string prefix rather than a real explanation.
+        api_explanation = str(r.get("explanation", "")).strip()
+        if api_explanation and not api_explanation.startswith(_UNAVAILABLE_PREFIXES):
+            explanation = api_explanation
+        else:
+            explanation = _explanation(full, query_terms)
+
         results.append({
             "scholarship": full,
             "match_score": float(r["final_score"]),
-            "explanation": _explanation(full, query_terms),
+            "explanation": explanation,
         })
         if len(results) >= top_k:
             break

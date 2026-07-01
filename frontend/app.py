@@ -43,9 +43,14 @@ for _k, _v in [("page", "form"), ("results", []), ("last_profile", {})]:
         st.session_state[_k] = _v
 
 # ── Logo (base64 so it embeds cleanly in HTML without static-file serving) ────
+# Guarded: if the logo asset is ever missing, the app should still render
+# (blank logo) instead of crashing on import before anyone sees a page.
 _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.png")
-with open(_logo_path, "rb") as _f:
-    _logo_src = "data:image/png;base64," + base64.b64encode(_f.read()).decode()
+try:
+    with open(_logo_path, "rb") as _f:
+        _logo_src = "data:image/png;base64," + base64.b64encode(_f.read()).decode()
+except FileNotFoundError:
+    _logo_src = ""
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown(
