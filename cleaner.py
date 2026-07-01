@@ -37,7 +37,7 @@ REQUIRED_COLUMNS = [
     "id", "name", "provider", "country", "level", "field_of_study",
     "min_gpa", "funding_type", "value", "deadline", "eligibility",
     "language_req", "description", "apply_url", "source_url",
-    "source_type", "collected_by", "date_added",
+    "source_type", "collected_by", "date_added", "needs_review",
 ]
 
 # if blank then rows dropped.
@@ -169,21 +169,70 @@ def normalise_country(raw) -> str:
 
 
 def normalise_deadline(raw) -> str:
-    """Parse any sensible date format and output YYYY-MM-DD. Returns raw if bad."""
+    """
+    Parse any sensible date format and output YYYY-MM-DD. Returns raw if bad.
+
+    Scholarship deadlines in the wild come with a lot of noise:
+      - annotations: "31 July 2026 (annual)", "Rolling**"
+      - multiple dates / ranges: "1/28 Feb 2026", "10 Apr/2 May 2026",
+        "Feb-April 2026", "varies, July-Oct 2026"
+    We strip the noise and, for ranges, keep the EARLIEST parseable date
+    (the one a student needs to hit), rather than giving up entirely.
+    """
     if pd.isna(raw):
         return ""
     raw_str = str(raw).strip()
+
     # Already correct format
     if re.match(r"^\d{4}-\d{2}-\d{2}$", raw_str):
         return raw_str
-    # Try common formats
-    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%B %d, %Y",
-                "%b %d, %Y", "%d %B %Y", "%Y/%m/%d"):
-        try:
-            return datetime.strptime(raw_str, fmt).strftime(DEADLINE_FORMAT)
-        except ValueError:
-            continue
-    # Couldn't parse, keep as-is and flag
+
+    def _try_parse(s: str) -> str | None:
+        s = s.strip()
+        for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%B %d, %Y",
+                    "%b %d, %Y", "%d %B %Y", "%d %b %Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(s, fmt).strftime(DEADLINE_FORMAT)
+            except ValueError:
+                continue
+        return None
+
+    # Strip parenthetical annotations like "(annual)" and stray asterisks.
+    cleaned = re.sub(r"\(.*?\)", "", raw_str)
+    cleaned = cleaned.replace("*", "").strip().rstrip(",")
+
+    parsed = _try_parse(cleaned)
+    if parsed:
+        return parsed
+
+    # Handle "varies, <range>" by dropping the "varies," prefix.
+    cleaned2 = re.sub(r"^varies,?\s*", "", cleaned, flags=re.IGNORECASE)
+
+    # Date ranges: split on "/" or "-" and try each side, keep the earliest
+    # that parses. Handles "1/28 Feb 2026", "10 Apr/2 May 2026",
+    # "Feb-April 2026", "27 Feb/29 May 2026".
+    candidates: list[str] = []
+    for sep in ("/", "-"):
+        if sep in cleaned2:
+            parts = [p.strip() for p in cleaned2.split(sep)]
+            # If the first part has no year/month name, borrow the trailing
+            # "<Month> <Year>" (or day+month+year) from the last part.
+            tail_match = re.search(r"([A-Za-z]+\s+\d{4}|\d{1,2}\s+[A-Za-z]+\s+\d{4})$", cleaned2)
+            tail = tail_match.group(1) if tail_match else ""
+            for p in parts:
+                p = p.strip()
+                if not p:
+                    continue
+                if _try_parse(p):
+                    candidates.append(p)
+                elif tail and p not in tail:
+                    candidates.append(f"{p} {tail}".strip() if not re.search(r"\d{4}", p) else p)
+
+    parsed_candidates = [d for d in (_try_parse(c) for c in candidates) if d]
+    if parsed_candidates:
+        return min(parsed_candidates)
+
+    # Couldn't parse (e.g. "Rolling", "Ongoing (annual)") — keep as-is and flag.
     return raw_str
 
 
@@ -252,40 +301,51 @@ def normalise_all(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────
-# 5. FLAG ISSUES (non-destructive — just prints a report)
+# 5. FLAG ISSUES — sets needs_review + prints a report
 # ───────────────────────────────────────────────────────
 
-def flag_issues(df: pd.DataFrame) -> None:
-    """Print a data quality report. Doesn't modify the dataframe."""
-    issues = []
+def flag_issues(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute a 'needs_review' flag per row (True if a human should double-check
+    this scholarship before it goes live), and print a data quality report.
 
-    # Past deadlines
+    A row is flagged if any of:
+      - deadline is in the past
+      - deadline couldn't be parsed into YYYY-MM-DD
+      - apply_url is missing
+      - description is missing
+    """
     today = datetime.today()
-    for _, row in df.iterrows():
-        try:
-            dl = datetime.strptime(row["deadline"], DEADLINE_FORMAT)
-            if dl < today:
-                issues.append(f"  [EXPIRED]  {row['id']} — deadline {row['deadline']} is in the past")
-        except (ValueError, TypeError):
-            if row["deadline"]:
-                issues.append(f"  [BAD DATE] {row['id']} — unparseable deadline: '{row['deadline']}'")
+    reasons = [[] for _ in range(len(df))]
 
-    # Missing apply_url
-    for _, row in df.iterrows():
-        if not row.get("apply_url", "").strip():
-            issues.append(f"  [NO URL]   {row['id']} — missing apply_url")
+    for i, row in df.iterrows():
+        deadline_val = str(row.get("deadline", "") or "")
+        if deadline_val:
+            try:
+                dl = datetime.strptime(deadline_val, DEADLINE_FORMAT)
+                if dl < today:
+                    reasons[i].append(f"[EXPIRED] deadline {deadline_val} is in the past")
+            except ValueError:
+                reasons[i].append(f"[BAD DATE] unparseable deadline: '{deadline_val}'")
 
-    # Missing description
-    for _, row in df.iterrows():
-        if not row.get("description", "").strip():
-            issues.append(f"  [NO DESC]  {row['id']} — missing description")
+        if not str(row.get("apply_url", "") or "").strip():
+            reasons[i].append("[NO URL] missing apply_url")
 
-    if issues:
-        print(f"\n  Data quality flags ({len(issues)} total):")
-        for issue in issues:
-            print(issue)
+        if not str(row.get("description", "") or "").strip():
+            reasons[i].append("[NO DESC] missing description")
+
+    df["needs_review"] = [len(r) > 0 for r in reasons]
+
+    total_flagged = sum(df["needs_review"])
+    if total_flagged:
+        print(f"\n  Data quality flags ({total_flagged} row(s) marked needs_review=True):")
+        for i, row in df.iterrows():
+            if reasons[i]:
+                print(f"  {row['id']} — " + "; ".join(reasons[i]))
     else:
-        print("\n  No data quality issues found.")
+        print("\n  No data quality issues found. needs_review is False for all rows.")
+
+    return df
 
 
 # ───────────────────────────────────────────────────────────
@@ -332,7 +392,7 @@ def main():
     df = normalise_all(df)
 
     print("\nStep 5 — Flagging issues")
-    flag_issues(df)
+    df = flag_issues(df)
 
     print("\nStep 6 — Saving")
     save(df, args.output)
