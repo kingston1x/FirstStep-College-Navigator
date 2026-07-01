@@ -29,8 +29,9 @@ import pandas as pd
 # CONFIG
 # ─────────────────────────────────────────────
 
-DEFAULT_INPUT  = "data/raw/Scholarships.csv"
-DEFAULT_OUTPUT = "data/clean/scholarships_clean.csv"
+_ROOT = os.path.join(os.path.dirname(__file__), "..")
+DEFAULT_INPUT  = os.path.join(_ROOT, "data", "raw", "Scholarships.csv")
+DEFAULT_OUTPUT = os.path.join(_ROOT, "data", "clean", "scholarships_clean.csv")
 
 # Every column the model (firststep_model.py) expects — do not remove any.
 REQUIRED_COLUMNS = [

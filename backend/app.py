@@ -46,7 +46,7 @@ CORS(app)   # allow Streamlit frontend to call this API cross-origin
 
 CSV_PATH = os.environ.get(
     "SCHOLARSHIPS_CSV",
-    os.path.join(os.path.dirname(__file__), "data", "clean", "Scholarships_clean.csv")
+    os.path.join(os.path.join(os.path.dirname(__file__), "..", "data", "clean", "scholarships_clean.csv"))
 )
 
 print(f"[startup] Loading scholarships from: {CSV_PATH}")

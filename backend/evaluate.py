@@ -21,8 +21,9 @@ import pandas as pd
 from matcher import load_scholarships, build_vectorizer, make_profile, match
 
 
-DEFAULT_CSV   = os.path.join(os.path.dirname(__file__), "data", "clean", "scholarships_clean.csv")
-DEFAULT_TRUTH = os.path.join(os.path.dirname(__file__), "evaluation", "ground_truth.csv")
+DEFAULT_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "clean", "scholarships_clean.csv")
+
+DEFAULT_TRUTH = os.path.join(os.path.dirname(__file__), "..", "evaluation", "ground_truth.csv")
 
 # We check precision at these two values of k
 K_VALUES = [3, 5]
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     csv_path = args.csv
     if not os.path.exists(csv_path):
-        fallback = os.path.join(os.path.dirname(__file__), "data", "raw", "Scholarships.csv")
+        fallback = os.path.join(os.path.dirname(__file__), "..", "data", "raw", "Scholarships.csv")
         if os.path.exists(fallback):
             print(f"[evaluate] Clean CSV not found, using raw: {fallback}\n")
             csv_path = fallback

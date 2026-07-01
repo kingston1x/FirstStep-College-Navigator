@@ -421,9 +421,7 @@ def evaluate_from_csv(
 # 9. ENTRY POINT
 # ──────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_CSV = os.path.join(
-    os.path.dirname(__file__), "data", "clean", "scholarships_clean.csv"
-)
+DEFAULT_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "clean", "scholarships_clean.csv")
 
 DEMO_PROFILES = [
     make_profile(
@@ -521,7 +519,7 @@ if __name__ == "__main__":
     # If the default CSV doesn't exist, fall back to the raw CSV for dev testing
     csv_path = args.csv
     if not os.path.exists(csv_path):
-        fallback = os.path.join(os.path.dirname(__file__), "data", "raw", "Scholarships.csv")
+        fallback = os.path.join(os.path.dirname(__file__), "..", "data", "raw", "Scholarships.csv")
         if os.path.exists(fallback):
             print(f"[model] Clean CSV not found, falling back to raw: {fallback}\n")
             csv_path = fallback
