@@ -24,6 +24,8 @@ Integrated usage (called from app.py):
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from dotenv import load_dotenv
 from google import genai
 
@@ -84,6 +86,12 @@ Write a 2-3 sentence personalised explanation of why this scholarship is a good 
 def explain_matches(profile: dict, recommendations: list[dict]) -> list[dict]:
     """
     Add an 'explanation' field to each scholarship recommendation.
+
+    Calls Gemini once per scholarship, IN PARALLEL via a thread pool — these
+    are independent network I/O calls, so running them concurrently turns a
+    top_k=8 request from ~8x single-call latency into roughly 1x (plus a
+    little overhead), instead of blocking the whole /recommend response on
+    each call in sequence.
     """
     if not recommendations:
         return recommendations
@@ -96,16 +104,29 @@ def explain_matches(profile: dict, recommendations: list[dict]) -> list[dict]:
             rec["explanation"] = "Explanation unavailable — API key not configured."
         return recommendations
 
-    results = []
-    for scholarship in recommendations:
+    def _explain_with_fallback(scholarship: dict) -> tuple[dict, str]:
         try:
             explanation = explain_one(client, profile, scholarship)
         except Exception as e:
             print(f"[explainer] Failed to explain {scholarship.get('id')}: {e}")
             explanation = "Could not generate explanation at this time."
+        return scholarship, explanation
 
-        scholarship["explanation"] = explanation
-        results.append(scholarship)
+    # Cap workers at a sane ceiling regardless of top_k, to avoid hammering
+    # the Gemini API with too many simultaneous requests (rate limits).
+    max_workers = min(len(recommendations), 8)
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [pool.submit(_explain_with_fallback, s) for s in recommendations]
+        for future in as_completed(futures):
+            scholarship, explanation = future.result()
+            scholarship["explanation"] = explanation
+            results.append(scholarship)
+
+    # as_completed() finishes in whatever order calls return, not the order
+    # they were submitted — restore the original ranking before returning.
+    order = {s.get("id"): i for i, s in enumerate(recommendations)}
+    results.sort(key=lambda s: order.get(s.get("id"), 0))
 
     return results
 

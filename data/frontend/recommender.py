@@ -162,10 +162,21 @@ def get_recommendations(profile: dict[str, Any], top_k: int = 8) -> list[dict[st
         country = str(full.get("country", ""))
         if prefs and country.lower() not in prefs and country.lower() not in ("various", "online"):
             continue
+        # /recommend now returns a real Gemini-generated explanation per item
+        # (from explainer.py). Use it when present; fall back to the local
+        # placeholder only if the backend couldn't produce one (e.g. missing
+        # API key, explainer.py not loaded, or a per-item Gemini failure).
+        api_explanation = str(r.get("explanation") or "").strip()
+        fallback_needed = (
+            not api_explanation
+            or api_explanation.lower().startswith(("explanation unavailable", "could not generate"))
+        )
+        explanation = _explanation(full, query_terms) if fallback_needed else api_explanation
+
         results.append({
             "scholarship": full,
             "match_score": float(r["final_score"]),
-            "explanation": _explanation(full, query_terms),
+            "explanation": explanation,
         })
         if len(results) >= top_k:
             break

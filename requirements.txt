@@ -4,3 +4,5 @@ pandas
 scikit-learn
 streamlit>=1.30
 requests>=2.31
+google-genai==2.10.0
+python-dotenv==1.2.2

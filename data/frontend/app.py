@@ -541,9 +541,12 @@ def _build_card(r: dict) -> str:
     else:
         badge_cls, badge_label = "fair", f"{match_pct}% Partial Match"
 
-    country = s.get("country", "")
-    funding = s.get("funding_type", "")
-    lvl = s.get("level", "")
+    # str(...) guards against NaN/None slipping through from the API —
+    # a bare .get() only falls back to "" when the KEY is missing, not
+    # when its value is present but empty/NaN.
+    country = str(s.get("country") or "")
+    funding = str(s.get("funding_type") or "")
+    lvl = str(s.get("level") or "")
 
     tags = ""
     if country:

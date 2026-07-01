@@ -36,6 +36,16 @@ except ImportError:
     print("[ERROR] matcher.py not found. Make sure it's in the same folder as app.py.")
     sys.exit(1)
 
+# ── Import the LLM explanation layer ──────────────────────────────────────────
+# Optional: if explainer.py or GEMINI_API_KEY is missing, /recommend still
+# works — it just returns results without personalised explanations.
+try:
+    from explainer import explain_matches
+    EXPLAINER_AVAILABLE = True
+except ImportError:
+    print("[app] Warning: explainer.py not found — /recommend will skip explanations.")
+    EXPLAINER_AVAILABLE = False
+
 # ─── App setup ────────────────────────────────────────────────────────────────
 
 app = Flask(__name__)
@@ -66,9 +76,17 @@ except Exception as e:
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 def df_to_records(df):
-    """Convert DataFrame to a clean list of dicts, dropping internal _ columns."""
+    """
+    Convert DataFrame to a clean list of dicts, dropping internal _ columns.
+
+    Empty cells in the source CSV become NaN (a float) when pandas reads them.
+    to_dict() does NOT convert these — they'd otherwise reach the frontend as
+    literal NaN values, which crash any code expecting a string (e.g. "".lower()
+    on a missing funding_type). Replace NaN with "" here, once, so every
+    consumer of this API always gets clean strings.
+    """
     cols = [c for c in df.columns if not c.startswith("_")]
-    return df[cols].to_dict(orient="records")
+    return df[cols].fillna("").to_dict(orient="records")
 
 
 def error(message, status=400):
@@ -232,6 +250,31 @@ def recommend():
     results["boost_score"] = results["boost_score"].round(4)
     results["final_score"] = results["final_score"].round(4)
 
+    recommendations = results.fillna("").to_dict(orient="records")
+
+    # ── LLM explanation layer ────────────────────────────────────────────────
+    # Adds a personalised 'explanation' field to each recommendation via Gemini.
+    # This is a network call per recommendation, so it's the slowest part of
+    # this endpoint (roughly top_k x ~1-2s). Failures here don't break the
+    # response — explain_matches() falls back to a placeholder string per item
+    # if the API key is missing or a single call fails.
+    if EXPLAINER_AVAILABLE:
+        try:
+            recommendations = explain_matches(
+                profile={
+                    "gpa": gpa, "level": level, "language": language,
+                    "location": location, "courses": courses, "interests": interests,
+                },
+                recommendations=recommendations,
+            )
+        except Exception as e:
+            print(f"[app] Explainer failed, returning results without explanations: {e}")
+            for rec in recommendations:
+                rec.setdefault("explanation", "Explanation unavailable.")
+    else:
+        for rec in recommendations:
+            rec["explanation"] = "Explanation unavailable — explainer.py not loaded."
+
     return jsonify({
         "success": True,
         "count": len(results),
@@ -243,7 +286,7 @@ def recommend():
             "courses": courses,
             "interests": interests,
         },
-        "recommendations": results.to_dict(orient="records"),
+        "recommendations": recommendations,
     })
 
 
